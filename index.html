@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-IN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="description" content="FitDesk is your gym membership companion — check in with a scan, track your plan, and renew in seconds." />
+    <meta name="theme-color" content="#F4F7F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#05100E" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FitDesk" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <title>FitDesk — Member App</title>
+    <script>
+      ;(function () {
+        try {
+          var saved = localStorage.getItem('fitdesk.theme')
+          var mode = saved === 'light' || saved === 'dark' ? saved : null
+          if (!mode) {
+            mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          }
+          document.documentElement.setAttribute('data-theme', mode)
+          document.documentElement.style.colorScheme = mode
+          document.documentElement.classList.toggle('dark', mode === 'dark')
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

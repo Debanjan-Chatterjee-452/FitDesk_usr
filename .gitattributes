@@ -1,0 +1,9 @@
+# Normalise line endings: store LF in the repository, check out LF everywhere.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff2 binary
+*.pdf binary

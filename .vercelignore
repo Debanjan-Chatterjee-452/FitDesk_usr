@@ -1,0 +1,22 @@
+# Never upload local secrets. Vercel project settings hold the real env vars.
+.env
+.env.*
+!.env.example
+!.env.demo
+
+# Build output is regenerated on Vercel.
+dist/
+node_modules/
+*.log
+*.tsbuildinfo
+
+# Local tooling, not part of the deployed site.
+.git/
+.github/
+supabase/
+scripts/
+.vscode/
+.idea/
+coverage/
+.DS_Store
+Thumbs.db

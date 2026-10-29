@@ -1,0 +1,7 @@
+project_id = "fitdesk"
+
+[functions.create-renewal-order]
+verify_jwt = true
+
+[functions.verify-payment]
+verify_jwt = true
