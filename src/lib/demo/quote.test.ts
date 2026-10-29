@@ -43,12 +43,12 @@ describe('late renewal fine', () => {
     expect(quote.fine_reason).toContain('₹50 flat')
   })
 
-  it('adds ₹10 for every day after day 8', () => {
+  it('adds ₹5 for every day after day 8', () => {
     const cases: Array<[number, number]> = [
-      [9, 60],
-      [10, 70],
-      [12, 90],
-      [30, 270],
+      [9, 55],
+      [10, 60],
+      [12, 70],
+      [30, 160],
     ]
     for (const [past, fine] of cases) {
       const { db, userId } = seededDatabase(-past)

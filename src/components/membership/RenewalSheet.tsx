@@ -24,6 +24,7 @@ import { UpiPaymentPanel } from '@/components/membership/UpiPaymentPanel'
 import { useRenewalQuote, useReserveUpiCheckout } from '@/hooks/queries'
 import { toAppError } from '@/lib/errors'
 import { formatKolkata } from '@/lib/kolkata'
+import { FINE_DAILY_AMOUNT, FINE_FLAT_AMOUNT, FINE_GRACE_DAYS, FINE_START_DAY } from '@/lib/lateFee'
 import { clamp, cn, formatDuration, formatINR } from '@/lib/utils'
 
 interface RenewalSheetProps {
@@ -458,7 +459,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
                           'You are within the 7-day grace period, so no late fee applies.'}
                       </p>
                       <p className="mt-1 text-[9.5px] text-faint">
-                        Grace: 0–7 days ₹0 · day 8 ₹50 flat · day 9+ ₹50 + ₹10/day
+                        {`Grace: 0–${FINE_GRACE_DAYS} days ₹0 · day ${FINE_START_DAY} ₹${FINE_FLAT_AMOUNT} flat · day ${FINE_START_DAY + 1}+ ₹${FINE_FLAT_AMOUNT} + ₹${FINE_DAILY_AMOUNT}/day`}
                       </p>
                     </div>
                   </div>

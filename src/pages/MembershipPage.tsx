@@ -26,13 +26,21 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { SectionHeading } from '@/components/ui/SectionHeading'
 import { PackageCard } from '@/components/membership/PackageCard'
 import { RenewalSheet } from '@/components/membership/RenewalSheet'
+import { ExpiryWarningBanner } from '@/components/membership/ExpiryWarningBanner'
 import {
   useMembershipSnapshot,
+  useNow,
   usePackages,
   usePayments,
   usePendingPayment,
 } from '@/hooks/queries'
 import { formatKolkata } from '@/lib/kolkata'
+import {
+  FINE_DAILY_AMOUNT,
+  FINE_FLAT_AMOUNT,
+  FINE_GRACE_DAYS,
+  FINE_START_DAY,
+} from '@/lib/lateFee'
 import { cn, formatDuration, formatINR } from '@/lib/utils'
 
 const PAYMENT_TONES = {
@@ -82,6 +90,7 @@ export function MembershipPage() {
   const packagesQuery = usePackages()
   const paymentsQuery = usePayments()
   const pendingQuery = usePendingPayment()
+  const now = useNow(30_000)
   const [selectedPackage, setSelectedPackage] = useState<GymPackage | null>(null)
   const [renewalOpen, setRenewalOpen] = useState(false)
   const [verification, setVerification] = useState<PaymentVerification | null>(null)
@@ -142,105 +151,102 @@ export function MembershipPage() {
             ) : membershipQuery.isLoading ? (
               <Skeleton className="h-48 rounded-3xl" />
             ) : membership ? (
-              <div className="card overflow-hidden">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line/70 p-5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="display-accent text-[22px] text-ink">
-                        {membership.package?.name ?? 'Membership'}
-                      </h3>
-                      <Badge tone={snapshot.isActive ? (snapshot.daysLeft <= 3 ? 'warning' : 'success') : 'danger'} dot>
+              <>
+                <div className="card overflow-hidden">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line/70 p-5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="display-accent text-[22px] text-ink">
+                          {membership.package?.name ?? 'Membership'}
+                        </h3>
+                        <Badge tone={snapshot.isActive ? (snapshot.daysLeft <= 3 ? 'warning' : 'success') : 'danger'} dot>
+                          {snapshot.isActive
+                            ? snapshot.daysLeft === 0
+                              ? 'Expires today'
+                              : 'Active'
+                            : 'Expired'}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-[11.5px] text-muted">
+                        {formatKolkata(membership.starts_on, 'd MMM yyyy')} –{' '}
+                        {formatKolkata(membership.ends_on, 'd MMM yyyy')} ·{' '}
+                        {formatDuration(
+                          Math.max(
+                            1,
+                            Math.round(
+                              (new Date(membership.ends_on).getTime() - new Date(membership.starts_on).getTime()) /
+                                86_400_000,
+                            ) + 1,
+                          ),
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="display-number display-accent text-[26px] leading-none text-ink">
+                        {snapshot.isActive && snapshot.daysLeft > 0
+                          ? snapshot.daysLeft
+                          : snapshot.daysPastExpiry}
+                      </p>
+                      <p className="mt-1 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-faint">
+                        {snapshot.isActive && snapshot.daysLeft > 0 ? 'days left' : 'days past'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="h-2 overflow-hidden rounded-full bg-elevated">
+                      <div
+                        className={cn(
+                          'h-full rounded-full',
+                          snapshot.isActive ? 'bg-primary' : 'bg-warning',
+                        )}
+                        style={{ width: `${Math.round((snapshot.isActive ? snapshot.progress : 1) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <p className="text-[10.5px] text-muted">
                         {snapshot.isActive
-                          ? snapshot.daysLeft === 0
-                            ? 'Expires today'
-                            : 'Active'
-                          : 'Expired'}
-                      </Badge>
+                          ? 'Plan usage since start date'
+                          : 'Renew to restore check-in access'}
+                      </p>
+                      <Button
+                        variant="soft"
+                        size="sm"
+                        disabled={Boolean(pendingPayment)}
+                        onClick={() => {
+                          const pkg = packagesQuery.data?.find((item) => item.id === currentPackageId)
+                          if (pkg) openRenewal(pkg)
+                          else document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })
+                        }}
+                      >
+                        {pendingPayment
+                          ? 'Awaiting verification'
+                          : snapshot.isActive
+                            ? 'Renew'
+                            : 'Renew now'}
+                      </Button>
                     </div>
-                    <p className="mt-1 text-[11.5px] text-muted">
-                      {formatKolkata(membership.starts_on, 'd MMM yyyy')} –{' '}
-                      {formatKolkata(membership.ends_on, 'd MMM yyyy')} ·{' '}
-                      {formatDuration(
-                        Math.max(
-                          1,
-                          Math.round(
-                            (new Date(membership.ends_on).getTime() - new Date(membership.starts_on).getTime()) /
-                              86_400_000,
-                          ) + 1,
-                        ),
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="display-number display-accent text-[26px] leading-none text-ink">
-                      {snapshot.isActive && snapshot.daysLeft > 0
-                        ? snapshot.daysLeft
-                        : snapshot.daysPastExpiry}
-                    </p>
-                    <p className="mt-1 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-faint">
-                      {snapshot.isActive && snapshot.daysLeft > 0 ? 'days left' : 'days past'}
-                    </p>
+
+                    {upcoming ? (
+                      <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary-soft/60 p-3">
+                        <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-primary-strong" />
+                        <p className="text-[10.5px] leading-relaxed text-muted">
+                          <span className="font-semibold text-ink">Renewal queued</span> ·{' '}
+                          {upcoming.package?.name ?? 'Membership'} runs{' '}
+                          {formatKolkata(upcoming.starts_on, 'd MMM')} –{' '}
+                          {formatKolkata(upcoming.ends_on, 'd MMM yyyy')}.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                <div className="p-5">
-                  <div className="h-2 overflow-hidden rounded-full bg-elevated">
-                    <div
-                      className={cn(
-                        'h-full rounded-full',
-                        snapshot.isActive ? 'bg-primary' : 'bg-warning',
-                      )}
-                      style={{ width: `${Math.round((snapshot.isActive ? snapshot.progress : 1) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <p className="text-[10.5px] text-muted">
-                      {snapshot.isActive
-                        ? 'Plan usage since start date'
-                        : 'Renew to restore check-in access'}
-                    </p>
-                    <Button
-                      variant="soft"
-                      size="sm"
-                      disabled={Boolean(pendingPayment)}
-                      onClick={() => {
-                        const pkg = packagesQuery.data?.find((item) => item.id === currentPackageId)
-                        if (pkg) openRenewal(pkg)
-                        else document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })
-                      }}
-                    >
-                      {pendingPayment
-                        ? 'Awaiting verification'
-                        : snapshot.isActive
-                          ? 'Renew'
-                          : 'Renew now'}
-                    </Button>
-                  </div>
-
-                  {upcoming ? (
-                    <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary-soft/60 p-3">
-                      <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-primary-strong" />
-                      <p className="text-[10.5px] leading-relaxed text-muted">
-                        <span className="font-semibold text-ink">Renewal queued</span> ·{' '}
-                        {upcoming.package?.name ?? 'Membership'} runs{' '}
-                        {formatKolkata(upcoming.starts_on, 'd MMM')} –{' '}
-                        {formatKolkata(upcoming.ends_on, 'd MMM yyyy')}.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {snapshot.isExpired ? (
-                    <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-warning/25 bg-warning/[0.05] p-3">
-                      <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                      <p className="text-[10.5px] leading-relaxed text-muted">
-                        Your membership expired {snapshot.daysPastExpiry}{' '}
-                        {snapshot.daysPastExpiry === 1 ? 'day' : 'days'} ago. A late fee applies
-                        from day 8 — your renewal clears the outstanding fine once the gym
-                        approves the payment.
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+                <ExpiryWarningBanner
+                  snapshot={snapshot}
+                  now={now}
+                  hasUpcomingPlan={Boolean(upcoming)}
+                  paymentPending={Boolean(pendingPayment)}
+                  className="mt-3"
+                />
+              </>
             ) : (
               <EmptyState
                 icon={<Sparkles className="h-5 w-5" />}
@@ -327,9 +333,24 @@ export function MembershipPage() {
               </div>
             </div>
             <div className="mt-4 space-y-2.5">
-              <FeeRow days="0 – 7 days" fee="₹0" note="Grace period" tone="success" />
-              <FeeRow days="Day 8" fee="₹50" note="Flat late fee" tone="warning" />
-              <FeeRow days="Day 9 onwards" fee="₹50 + ₹10/day" note="Per extra day" tone="danger" />
+              <FeeRow
+                days={`0 – ${FINE_GRACE_DAYS} days`}
+                fee="₹0"
+                note="Grace period"
+                tone="success"
+              />
+              <FeeRow
+                days={`Day ${FINE_START_DAY}`}
+                fee={`₹${FINE_FLAT_AMOUNT}`}
+                note="Flat late fee"
+                tone="warning"
+              />
+              <FeeRow
+                days={`Day ${FINE_START_DAY + 1} onwards`}
+                fee={`₹${FINE_FLAT_AMOUNT} + ₹${FINE_DAILY_AMOUNT}/day`}
+                note="Per extra day"
+                tone="danger"
+              />
             </div>
             <p className="mt-4 border-t border-line/70 pt-3 text-[10px] leading-relaxed text-muted">
               Fine is based on the expiry date of your latest plan, in IST. A renewal clears the

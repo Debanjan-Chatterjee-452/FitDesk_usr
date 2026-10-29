@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { SectionHeading } from '@/components/ui/SectionHeading'
 import { MembershipHero } from '@/components/membership/MembershipHero'
+import { ExpiryWarningBanner } from '@/components/membership/ExpiryWarningBanner'
 import { GymStatusCard } from '@/components/gym/GymStatusCard'
 import { CheckInCard } from '@/components/attendance/CheckInCard'
 import { AttendanceRow } from '@/components/attendance/AttendanceRow'
@@ -262,6 +263,15 @@ export function HomePage() {
               onScan={() => navigate('/scan')}
             />
           )}
+
+          {!membershipQuery.isLoading && !membershipQuery.isError ? (
+            <ExpiryWarningBanner
+              snapshot={snapshot}
+              now={now}
+              hasUpcomingPlan={Boolean(membershipQuery.upcoming)}
+              paymentPending={Boolean(pendingPayment)}
+            />
+          ) : null}
 
           <div className="space-y-5 lg:hidden">{sidebar}</div>
 

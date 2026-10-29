@@ -255,9 +255,16 @@ All calculations use `Asia/Kolkata` calendar dates and inclusive end dates.
 | --- | --- |
 | 0–7 | ₹0 |
 | exactly 8 | ₹50 |
-| 9 or more | ₹50 + ₹10 × (days − 8) |
+| 9 or more | ₹50 + ₹5 × (days − 8) |
 
-Examples: day 8 = ₹50, day 9 = ₹60, day 12 = ₹90.
+Examples: day 8 = ₹50, day 9 = ₹55, day 12 = ₹70, day 30 = ₹160.
+
+The member app shows this schedule as an in-app banner under the membership card on the
+dashboard: a reminder at 3 days and 1 day before expiry, a warning on day 7 past expiry, and
+an overdue notice from day 8 onwards. The banner is driven by the same IST calendar maths as
+the server quote (`src/lib/lateFee.ts`), and disappears as soon as an approved renewal extends
+or stacks the plan. A submitted-but-unverified payment does not hide it, because nothing has
+changed yet.
 
 - An **active** plan renews from the day after its current `ends_on` (stacking).
 - A **lapsed** plan starts today.
@@ -463,8 +470,10 @@ On Windows use `npm.cmd` / `npx.cmd` because PowerShell may block `npm.ps1`.
 
 `npm.cmd run test` runs the Vitest suite. It covers IST day boundaries, the gym
 open/closed/holiday derivation, QR payload parsing, and the full renewal fine
-schedule (7-day grace, day 8, day 9+) including stacked renewals and Flex
-duration clamping.
+schedule (7-day grace, day 8, day 9+ at ₹5/day) including stacked renewals and Flex
+duration clamping. `src/lib/lateFee.test.ts` locks the schedule itself, and
+`src/lib/expiryWarning.test.ts` locks the exact banner copy at 3 days, 1 day, day 7, day 8 and
+day 9+ past expiry, including the IST midnight boundary.
 
 The direct-UPI flow has its own suites: `src/lib/upi/upi.test.ts` (UPI ID and amount
 validation, `upi://pay` encoding, QR payload interpretation including payee/amount mismatch and

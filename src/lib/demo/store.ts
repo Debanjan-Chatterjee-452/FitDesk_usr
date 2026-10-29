@@ -9,6 +9,7 @@ import type {
   RenewalQuote,
 } from '@/types'
 import { addDaysToDate, todayInKolkata } from '@/lib/kolkata'
+import { calculateLateFee } from '@/lib/lateFee'
 
 export const DEMO_STORE_KEY = 'fitdesk.demo.v1'
 export const DEMO_SESSION_KEY = 'fitdesk.demo.session'
@@ -531,17 +532,7 @@ export function calculateDemoQuote(
       )
     : 0
 
-  let fineAmount = 0
-  let fineReason: string | null = null
-  if (daysPastExpiry === 8) {
-    fineAmount = 50
-    fineReason = '8 days past expiry — ₹50 flat late fee'
-  } else if (daysPastExpiry >= 9) {
-    fineAmount = 50 + 10 * (daysPastExpiry - 8)
-    fineReason = `${daysPastExpiry} days past expiry — ₹50 + ₹10/day after day 8`
-  } else if (daysPastExpiry > 0) {
-    fineReason = `${daysPastExpiry} ${daysPastExpiry === 1 ? 'day' : 'days'} past expiry — inside the 7-day grace period`
-  }
+  const { amount: fineAmount, reason: fineReason } = calculateLateFee(daysPastExpiry)
 
   const baseAmount =
     pkg.pricing_mode === 'per_day' ? pkg.price_inr * duration : pkg.price_inr

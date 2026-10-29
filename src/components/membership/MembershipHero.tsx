@@ -102,7 +102,6 @@ export function MembershipHero({
     : 'danger'
 
   const ringProgress = isActive ? Math.max(0.02, 1 - progress) : 1
-  const fineRisk = isExpired && daysPastExpiry >= 6
 
   return (
     <section
@@ -243,11 +242,7 @@ export function MembershipHero({
           <div className="mt-4 flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5">
             <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FDBA74]" />
             <p className="text-[10.5px] leading-relaxed text-white/65">
-              {daysPastExpiry <= 7
-                ? 'You are inside the 7-day grace period. Renew now with no late fee.'
-                : fineRisk
-                  ? `A late fee of ${formatINR(50 + 10 * Math.max(0, daysPastExpiry - 8))} applies today. Renew to clear your outstanding status.`
-                  : 'Renew to restore access and keep your training rhythm.'}
+              Renew to restore access and keep your training rhythm.
             </p>
           </div>
         ) : null}
@@ -270,11 +265,6 @@ export function MembershipHero({
           </Link>
         </div>
 
-        {isActive && daysLeft <= 3 ? (
-          <p className="mt-3 text-[10px] text-[#FDE68A]">
-            Heads up — your plan expires in {daysLeft === 0 ? 'a few hours' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`}.
-          </p>
-        ) : null}
       </div>
 
       <Decorations />
