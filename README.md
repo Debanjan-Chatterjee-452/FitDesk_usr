@@ -245,6 +245,27 @@ Upload `dist/` to any static host. Configure an SPA rewrite so every route falls
 
 Serve over HTTPS — camera access and service workers require it (localhost is exempt).
 
+### 10. Native builds (Android APK / iOS)
+
+The same web app ships as a Capacitor shell under `android/` and `ios/`.
+
+- **Android:** installable signed APK at
+  `release/android/FitDesk-member-release.apk` (package `com.fitdesk.gym`).
+- **iOS:** install the deployed PWA from Safari via **Share → Add to Home Screen**.
+  Producing an `.ipa` requires macOS/Xcode and an Apple Developer account.
+
+Full install, signing-key, and rebuild instructions:
+[`docs/android-release.md`](docs/android-release.md).
+
+```powershell
+npm.cmd run build
+.\node_modules\.bin\cap.cmd sync android
+cd android; .\gradlew.bat assembleRelease --no-daemon
+```
+
+> The release keystore (`android/fitdesk-release.jks`) must be backed up — losing it
+> permanently prevents shipping updates to already-installed apps.
+
 ---
 
 ## Renewal and late-fee rules
@@ -501,6 +522,8 @@ changes.
 - [ ] `VITE_DEMO_MODE` is **not** `true` in production
 - [ ] HTTPS + SPA rewrite configured
 - [ ] Lighthouse / camera permission tested on iOS Safari and Android Chrome
+- [ ] Signed Android APK installed on a real device; `versionCode` bumped for each release
+- [ ] iOS PWA install verified (Safari → Add to Home Screen → full-screen launch)
 - [ ] Backup and PITR policy enabled on the Supabase project
 - [ ] Staff know how to publish holiday/closure announcements
 

@@ -32,3 +32,12 @@ supabase/.temp
 *.sw?
 
 .vercel
+
+# Android / iOS build outputs and signing material — never commit these.
+release/
+*.keystore
+*.jks
+android/app/*.keystore
+android/keystore.properties
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
