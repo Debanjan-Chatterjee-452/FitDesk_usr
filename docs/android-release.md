@@ -6,6 +6,9 @@ Production web app: <https://fitdesk-usr.vercel.app/>
 > The signed file for the current release lives at
 > `release/android/FitDesk-member-release.apk`.
 
+**Public download page:** <https://fitdesk-download.vercel.app/>
+**Direct APK link:** <https://fitdesk-download.vercel.app/FitDesk.apk>
+
 | File | What it is |
 | --- | --- |
 | `FitDesk-member-release.apk` | **Signed release APK — use this one.** Install on Android. |
@@ -26,6 +29,11 @@ the live Supabase project. A network connection is still required at runtime.
 ---
 
 ## Install on Android
+
+Easiest path: open <https://fitdesk-download.vercel.app/> on the phone and tap
+**Download APK**.
+
+Or install from a file:
 
 1. Copy `FitDesk-member-release.apk` to the phone (USB, Google Drive, WhatsApp to yourself, etc.).
 2. Open the file from the phone's file manager.
@@ -139,6 +147,32 @@ to uninstall and reinstall, losing local app data.
 There is no debug APK in this folder on purpose: a debug build is signed with a
 different key, so it cannot be installed over the release build. Build one with
 `.\gradlew.bat assembleDebug` only when testing on a separate device/emulator.
+
+---
+
+## Publishing a new build to the download page
+
+The public page is a standalone Vercel project (`fitdesk-download`) whose source
+lives in `deploy/download-site/` (the APK itself is gitignored there).
+
+1. Copy the new APK to the site folder, keeping the name `FitDesk.apk`:
+
+   ```powershell
+   Copy-Item "release\android\FitDesk-member-release.apk" `
+             "deploy\download-site\FitDesk.apk" -Force
+   ```
+
+2. Update the size, version, and SHA-256 in `deploy/download-site/index.html`.
+
+3. Deploy:
+
+   ```powershell
+   cd deploy\download-site
+   vercel.cmd deploy --prod --yes
+   ```
+
+Live URL stays <https://fitdesk-download.vercel.app/>; the APK is served from
+`/FitDesk.apk` with the Android package MIME type and an attachment disposition.
 
 ---
 

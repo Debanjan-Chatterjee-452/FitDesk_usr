@@ -41,3 +41,6 @@ android/app/*.keystore
 android/keystore.properties
 android/app/google-services.json
 ios/App/App/GoogleService-Info.plist
+
+# Download site: the APK is a build artifact, not source.
+deploy/download-site/FitDesk.apk

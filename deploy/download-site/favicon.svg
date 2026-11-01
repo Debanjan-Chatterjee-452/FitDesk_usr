@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FitDesk">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="40" x2="440" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DD4BF"/>
+      <stop offset="0.55" stop-color="#0F9E8F"/>
+      <stop offset="1" stop-color="#0B5F57"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="96" y1="64" x2="320" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="rounded">
+      <rect x="16" y="16" width="480" height="480" rx="132"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect x="16" y="16" width="480" height="480" fill="url(#bg)"/>
+    <rect x="16" y="16" width="480" height="480" fill="url(#shine)"/>
+    <circle cx="446" cy="86" r="150" fill="#FFFFFF" fill-opacity="0.055"/>
+    <circle cx="88" cy="448" r="188" fill="#042F2A" fill-opacity="0.12"/>
+    <path d="M166 132h186v66H236v62h106v63H236v105h-70V132Z" fill="#FFFFFF" fill-opacity="0.97"/>
+    <circle cx="356" cy="292" r="34" fill="#052E2A" fill-opacity="0.35"/>
+  </g>
+  <rect x="16" y="16" width="480" height="480" rx="132" fill="none" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="2"/>
+</svg>
