@@ -18,6 +18,7 @@ import {
 } from '@/lib/api/auth'
 import { toAppError } from '@/lib/errors'
 import { clearAuthStorage } from '@/lib/supabase'
+import { installMemberRealtime } from '@/lib/realtime'
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -128,6 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe()
     }
   }, [loadProfile, queryClient])
+
+  // Set up realtime subscriptions for the member
+  useEffect(() => {
+    if (!userId) return
+    return installMemberRealtime(queryClient, userId)
+  }, [userId, queryClient])
 
   const signOutMember = useCallback(async () => {
     try {

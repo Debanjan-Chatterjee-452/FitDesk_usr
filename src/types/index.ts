@@ -163,7 +163,8 @@ export interface Announcement {
 }
 
 export interface GymSettings {
-  id: number
+  id: number | null
+  gym_id: string
   name: string
   address: string | null
   open_time: string
@@ -316,6 +317,19 @@ export interface RefundResult {
   status: 'refunded'
   payment_id: string
   refund_status: RefundStatus
+}
+
+export interface JoinRequestRow {
+  status: string
+  gym_id: string
+  gym_name: string
+  requested_at: string | null
+}
+
+export interface JoinRequestResult {
+  status: string
+  gym_id: string
+  gym_name: string
 }
 
 export type CheckInStatus = 'checked_in' | 'already_checked_in'

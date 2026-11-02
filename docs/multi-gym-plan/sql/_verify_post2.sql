@@ -1,0 +1,1 @@
+select to_regclass('public.gym_join_requests') as join_table, to_regproc('public.register_gym_owner') as reg_rpc, to_regproc('public.member_gym_overview') as overview_rpc, to_regproc('public.admin_member_status_counts') as counts_rpc, to_regproc('public.platform_me') as platform_rpc, to_regproc('public.admin_assert') as assert_rpc;

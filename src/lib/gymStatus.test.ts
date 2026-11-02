@@ -4,6 +4,7 @@ import { deriveGymStatus } from './gymStatus'
 
 const settings: GymSettings = {
   id: 1,
+  gym_id: 'demo-gym',
   name: 'FitDesk Performance Club',
   address: '12, 100 Feet Road, Indiranagar, Bengaluru 560038',
   open_time: '05:00',

@@ -7,6 +7,10 @@ import { todayInKolkata } from '@/lib/kolkata'
 import { loadDemoDatabase } from '@/lib/demo/store'
 
 export interface GymOverview {
+  status: 'active' | 'suspended' | 'no_gym'
+  gymId: string | null
+  gymName: string | null
+  isOpen: boolean
   settings: GymSettings | null
   announcements: Announcement[]
 }
@@ -16,6 +20,10 @@ export async function getGymOverview(): Promise<GymOverview> {
     const db = loadDemoDatabase()
     const today = todayInKolkata()
     return {
+      status: 'active',
+      gymId: db.settings ? (db.settings as GymSettings).gym_id ?? null : null,
+      gymName: db.settings?.name ?? 'FitDesk',
+      isOpen: true,
       settings: db.settings,
       announcements: db.announcements
         .filter(
@@ -31,25 +39,28 @@ export async function getGymOverview(): Promise<GymOverview> {
   try {
     const today = todayInKolkata()
     const client = getSupabase()
-    const [settingsResult, announcementsResult] = await Promise.all([
-      client.from('gym_settings').select('*').eq('id', 1).maybeSingle(),
-      client
-        .from('announcements')
-        .select('*')
-        .eq('is_active', true)
-        .lte('starts_on', today)
-        .order('created_at', { ascending: false })
-        .limit(20),
-    ])
-    if (settingsResult.error) throw settingsResult.error
-    if (announcementsResult.error) throw announcementsResult.error
+    const { data, error } = await client.rpc('member_gym_overview')
+    if (error) throw error
 
-    const announcements = ((announcementsResult.data ?? []) as Announcement[]).filter(
+    const overview = (data ?? {}) as {
+      status?: string
+      gym_id?: string | null
+      gym_name?: string | null
+      is_open?: boolean
+      settings?: GymSettings | null
+      announcements?: Announcement[] | null
+    }
+
+    const announcements = ((overview.announcements ?? []) as Announcement[]).filter(
       (item) => !item.ends_on || item.ends_on >= today,
     )
 
     return {
-      settings: (settingsResult.data as GymSettings | null) ?? null,
+      status: (overview.status as GymOverview['status']) ?? 'no_gym',
+      gymId: overview.gym_id ?? null,
+      gymName: overview.gym_name ?? null,
+      isOpen: overview.is_open ?? true,
+      settings: (overview.settings as GymSettings | null) ?? null,
       announcements,
     }
   } catch (error) {

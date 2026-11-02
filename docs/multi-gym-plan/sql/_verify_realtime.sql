@@ -1,0 +1,1 @@
+select pubname, schemaname, tablename from pg_publication_tables order by 1,2,3;

@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { PublicOnly, RequireAdmin, RequireCompleteProfile, RequireSession } from '@/components/guards'
+import { PublicOnly, RequireAdmin, RequireCompleteProfile, RequireGym, RequireSession } from '@/components/guards'
 import { AppShell } from '@/components/layout/AppShell'
 import { FullScreenLoader } from '@/components/ui/FullScreenLoader'
 import { useTheme } from '@/context/ThemeProvider'
@@ -36,6 +36,9 @@ const ResetPasswordPage = lazy(() =>
 )
 const ProfileSetupPage = lazy(() =>
   import('@/pages/ProfileSetupPage').then((module) => ({ default: module.ProfileSetupPage })),
+)
+const JoinGymPage = lazy(() =>
+  import('@/pages/JoinGymPage').then((module) => ({ default: module.JoinGymPage })),
 )
 const HomePage = lazy(() =>
   import('@/pages/HomePage').then((module) => ({ default: module.HomePage })),
@@ -105,15 +108,19 @@ export default function App() {
             <Route path="/onboarding" element={<ProfileSetupPage />} />
 
             <Route element={<RequireCompleteProfile />}>
-              <Route element={<AppShell />}>
-                <Route index element={<HomePage />} />
-                <Route path="/membership" element={<MembershipPage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/scan" element={<ScanPage />} />
+              <Route path="/join-gym" element={<JoinGymPage />} />
 
-                <Route element={<RequireAdmin />}>
-                  <Route path="/admin/approvals" element={<AdminApprovalsPage />} />
+              <Route element={<RequireGym />}>
+                <Route element={<AppShell />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="/membership" element={<MembershipPage />} />
+                  <Route path="/attendance" element={<AttendancePage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/scan" element={<ScanPage />} />
+
+                  <Route element={<RequireAdmin />}>
+                    <Route path="/admin/approvals" element={<AdminApprovalsPage />} />
+                  </Route>
                 </Route>
               </Route>
             </Route>

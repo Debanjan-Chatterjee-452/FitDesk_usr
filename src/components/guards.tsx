@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/context/AuthProvider'
 import { FullScreenLoader } from '@/components/ui/FullScreenLoader'
@@ -6,6 +7,8 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/ui/Logo'
 import { isProfileComplete } from '@/lib/api/profile'
+import { isDemo } from '@/lib/env'
+import { useGymOverview } from '@/hooks/queries'
 
 export function PublicOnly() {
   const { status, profile, profileLoading, isProfileComplete: completed } = useAuth()
@@ -74,6 +77,77 @@ export function RequireCompleteProfile() {
 
   const complete = completed || isProfileComplete(profile)
   if (!complete) return <Navigate to="/onboarding" replace />
+  return <Outlet />
+}
+
+/** Only members with an assigned gym may open the app shell. */
+export function RequireGym() {
+  const { profile, profileLoading, signOutMember } = useAuth()
+  const gymQuery = useGymOverview()
+  const [signingOut, setSigningOut] = useState(false)
+
+  if (isDemo) return <Outlet />
+
+  if (profileLoading && !profile) {
+    return <FullScreenLoader label="Loading your gym" />
+  }
+
+  if (!profile?.gym_id) {
+    return <Navigate to="/join-gym" replace />
+  }
+
+  if (gymQuery.isLoading && !gymQuery.data) {
+    return <FullScreenLoader label="Loading your gym" />
+  }
+
+  if (gymQuery.isError) {
+    return (
+      <div className="relative flex min-h-[100svh] flex-col items-center justify-center gap-6 px-5">
+        <Logo />
+        <div className="w-full max-w-md">
+          <ErrorState
+            title="Your gym is taking a break"
+            message="We could not load your gym. Check your connection and try again."
+            onRetry={() => void gymQuery.refetch()}
+            retryLabel="Reload"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (gymQuery.data?.status === 'suspended') {
+    return (
+      <div className="relative flex min-h-[100svh] flex-col items-center justify-center gap-6 px-5">
+        <Logo />
+        <div className="w-full max-w-md">
+          <ErrorState
+            title="Gym temporarily unavailable"
+            message="This gym is temporarily unavailable. Please contact your gym."
+          />
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={signingOut}
+              onClick={() => {
+                setSigningOut(true)
+                void signOutMember().finally(() => setSigningOut(false))
+              }}
+              leadingIcon={<LogOut className="h-3.5 w-3.5" />}
+            >
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (gymQuery.data?.status === 'no_gym') {
+    return <Navigate to="/join-gym" replace />
+  }
+
   return <Outlet />
 }
 

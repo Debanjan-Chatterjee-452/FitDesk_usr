@@ -137,6 +137,7 @@ function buildPackages(): GymPackage[] {
 function buildSettings(): GymSettings {
   return {
     id: 1,
+    gym_id: DEMO_GYM_ID,
     name: 'FitDesk Performance Club',
     address: '12, 100 Feet Road, Indiranagar, Bengaluru 560038',
     open_time: '05:00',

@@ -10,6 +10,10 @@ const rawUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()
 const rawAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
 const rawRazorpayKeyId = (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined)?.trim()
 
+// Production fallback values — used when deployed without automatic env injection.
+const PROD_SUPABASE_URL = 'https://psgepyvdwvunjkbacsxe.supabase.co'
+const PROD_SUPABASE_ANON_KEY = 'sb_publishable_6f7McYKOGyh8LnNGA9N1KA_1D50g8hA'
+
 export const TIMEZONE = 'Asia/Kolkata'
 export const CURRENCY = 'INR'
 
@@ -25,9 +29,19 @@ function looksLikeUrl(value: string | undefined): value is string {
   }
 }
 
-export const supabaseUrl = looksLikeUrl(rawUrl) ? rawUrl.replace(/\/$/, '') : ''
-export const supabaseAnonKey = rawAnonKey ?? ''
-export const razorpayPublicKeyId = rawRazorpayKeyId ?? ''
+export const supabaseUrl: string = (() => {
+  if (looksLikeUrl(rawUrl)) return rawUrl.replace(/\/$/, '')
+  return PROD_SUPABASE_URL
+})()
+
+export const supabaseAnonKey: string = (() => {
+  // Use the env var if present and non-empty; otherwise fall back to the
+  // production publishable key.
+  if (rawAnonKey && rawAnonKey.trim()) return rawAnonKey
+  return PROD_SUPABASE_ANON_KEY
+})()
+
+export const razorpayPublicKeyId: string = rawRazorpayKeyId ?? ''
 
 /** True when a real Supabase project is wired up. */
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
