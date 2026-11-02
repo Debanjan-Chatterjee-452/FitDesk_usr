@@ -33,9 +33,10 @@ In the Supabase dashboard for `psgepyvdwvunjkbacsxe`:
    - retention window,
    - plan name.
 
-If the project has **no PITR**, do not proceed on backups alone. The logical
-dump in section 3 is then the only rollback path, and the migration must run
-in a low-traffic window.
+Result on 2026-11-02: both projects report `pitr_enabled: false`, `backups: null`,
+`walg_enabled: true`. There is no managed PITR and no physical backup. The
+logical dump taken before migration is the only rollback path, and each
+migration file ran in its own transaction.
 
 ---
 

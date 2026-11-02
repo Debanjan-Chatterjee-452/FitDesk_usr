@@ -1,1 +1,0 @@
-select pubname, puballtables from pg_publication where pubname in ('supabase_realtime','supabase_realtime_messages_publication');

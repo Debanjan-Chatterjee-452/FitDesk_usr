@@ -10,9 +10,9 @@
 | Item | Status |
 |---|---|
 | Draft migrations 01–07 | Written, applied to a local test database, rollback scripts tested |
-| Production database | Still at migration #12; untouched |
-| Backup / PITR check | **Blocked** — Supabase CLI is not authenticated yet |
-| Legacy project inspection | **Blocked** — same CLI access needed |
+| Production database | Migration #13 + drafts 01–07 applied; verified (RPCs and tables present) |
+| Backup / PITR check | Completed — PITR disabled; logical dump taken before migration |
+| Legacy project inspection | **Done** — read-only counts/hashes/RPCs captured; one shared e-mail, one unique user each, legacy has an extra `legal-document` bucket and an announcement |
 | Frontend review | Done; `FRONTEND-CHANGES.md` corrected (4 inaccuracies fixed) |
 | Draft 06 counts RPC | Added and tested locally (`_test_status_counts.sql`) |
 | Frontend approval | **Not given** — see `FRONTEND-CHANGES.md` section E |

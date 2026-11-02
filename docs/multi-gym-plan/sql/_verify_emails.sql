@@ -1,1 +1,0 @@
-select md5(lower(email)) as email_hash from auth.users order by 1;

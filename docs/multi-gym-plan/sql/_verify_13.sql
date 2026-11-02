@@ -1,1 +1,0 @@
-select to_regclass('public.gym_join_requests') as join_table, to_regproc('public.request_join_gym') as request_rpc, to_regproc('public.admin_review_join_request') as review_rpc, to_regproc('public.admin_list_join_requests') as list_rpc;

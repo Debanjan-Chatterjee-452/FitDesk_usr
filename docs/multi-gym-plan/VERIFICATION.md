@@ -1,10 +1,9 @@
 # Read-Only Verification (canonical + legacy)
 
-> **Status: BLOCKED until `supabase login` completes.**
-> Nothing in this document has been run against production yet.
->
-> All checks are `SELECT`-only. No migration, DDL, write, delete, auth change,
-> storage change, or deploy is performed.
+> **Status: VERIFIED (read-only) on 2026-11-02.**
+> Canonical and legacy projects were inspected with authenticated CLI access.
+> No production data was changed by the verification itself. Migrations were
+> applied afterwards with the user's explicit authorization.
 
 ## 0. Why this exists
 
@@ -89,19 +88,19 @@ local link metadata.
 
 | Item | What is checked | Result |
 |---|---|---|
-| A | Canonical project exists, ref matches, region/status, migration history | Pending |
-| B | Legacy project exists, is reachable, and is only read | Pending |
-| C1 | Auth users: count, confirmed count, distinct e-mails, e-mail hash | Pending |
-| C2 | Tables and exact row counts (all schemas) | Pending |
-| C3 | Storage buckets, public/private flag, object counts and bytes | Pending |
-| C4 | Functions/RPCs: names, arguments, body hashes | Pending |
-| C5 | Triggers: definitions | Pending |
-| C6 | RLS policies and table grants | Pending |
-| C7 | Migration history | Pending |
-| C8 | Realtime publication tables | Pending |
-| D | Backup / PITR window, retention, recoverability | Pending |
-| E | Migration #13 applied or not (do not assume) | Pending |
-| F | Documentation updated with actual results | Pending |
+| A | Canonical project exists, ref matches, region/status, migration history | **Verified** — `psgepyvdwvunjkbacsxe`, "FitDesk-admin", region `ap-southeast-1`, status `ACTIVE_HEALTHY`, Postgres 17.11 |
+| B | Legacy project exists, is reachable, and is only read | **Verified** — `ocycaiomiiovnsjeivvd`, "FitDesk", same region, `ACTIVE_HEALTHY`. Read-only queries only. |
+| C1 | Auth users: count, confirmed count, distinct e-mails, e-mail hash | **Verified** — canonical 2 users (2 confirmed, 2 distinct); legacy 2 users (2 confirmed, 2 distinct). One shared e-mail hash; one unique to each project. |
+| C2 | Tables and exact row counts (all schemas) | **Verified** — see `*-hashes.csv`. Canonical: gyms 3, profiles 2, memberships 0, payments 1, attendance 0, packages 7, gym_settings 3, announcements 0, gym_join_requests 0 (before #13; now present), auth_users 2, storage_objects 1. Legacy: gyms 1, profiles 2, memberships 0, payments 0, attendance 0, packages 5, gym_settings 1, announcements 1, auth_users 2, storage_objects 4. |
+| C3 | Storage buckets, public/private flag, object counts and bytes | **Verified** — canonical: `gym-payment-qr` (public), `legal-documents` (private, 1 object, 1,973,575 bytes), `payment-proofs` (private). Legacy: `gym-payment-qr` (public), `legal-document` (private), `legal-documents` (private, 4 objects, 1,545,815 bytes). |
+| C4 | Functions/RPCs: names, arguments, body hashes | **Verified** — canonical 96 functions, legacy 79. Canonical has the newer admin/platform/join RPCs. |
+| C5 | Triggers: definitions | **Verified** — canonical 18, legacy 16. |
+| C6 | RLS policies and table grants | **Verified** — canonical 22 policies, legacy 16. |
+| C7 | Migration history | **Not tracked in DB** — no `supabase_migrations` schema in either project. Object presence used instead (see E). |
+| C8 | Realtime publication tables | **Verified** — `supabase_realtime` publication exists in both but has **no published tables**. Canonical also has `supabase_realtime_messages_publication` with daily message tables. |
+| D | Backup / PITR window, retention, recoverability | **Verified** — `pitr_enabled: false`, `backups: null` in both projects. No managed PITR. A fresh logical dump (schema + data) was taken for canonical before migration and stored locally. |
+| E | Migration #13 applied or not (do not assume) | **Verified before migration: NOT applied** (join table and RPCs absent). **Now applied** as part of the production migration run, along with drafts 01–07. |
+| F | Documentation updated with actual results | **Done** — this file. |
 
 ### E. Migration #13 (explicit check)
 
@@ -172,15 +171,14 @@ Filled in only after login. Until then every row stays "Pending".
 
 | Check | Canonical | Legacy | Notes |
 |---|---|---|---|
-| Project ref/status | Pending | Pending | |
-| Migration head | Pending | Pending | |
-| Auth users count | Pending | Pending | |
-| Public tables | Pending | Pending | |
-| Storage buckets | Pending | Pending | |
-| Storage objects | Pending | Pending | |
-| RPC count | Pending | Pending | |
-| Policy count | Pending | Pending | |
-| Trigger count | Pending | Pending | |
-| Realtime tables | Pending | Pending | |
-| PITR window | Pending | n/a | |
-| Migration #13 | Pending | n/a | |
+| Project ref/status | `psgepyvdwvunjkbacsxe`, ACTIVE_HEALTHY | `ocycaiomiiovnsjeivvd`, ACTIVE_HEALTHY | Same org and region |
+| Migration head | No `supabase_migrations` schema; #13 absent before, now #13+01–07 applied | No `supabase_migrations` schema | Object-presence check used |
+| Auth users count | 2 (2 confirmed) | 2 (2 confirmed) | One shared e-mail hash |
+| Public tables | See hashes | See hashes | 3 gyms vs 1 gym; 1 vs 0 payments |
+| Storage buckets | 3 buckets, 1 object | 3 buckets, 4 objects | Legacy has an extra `legal-document` bucket |
+| RPC count | 96 | 79 | Canonical has newer admin/platform/join RPCs |
+| Policy count | 22 | 16 | |
+| Trigger count | 18 | 16 | |
+| Realtime tables | None published in `supabase_realtime` | None published | Canonical has daily broadcast message tables |
+| PITR window | Disabled | Disabled | Logical dump taken for canonical before migration |
+| Migration #13 | Applied in production (verified) | n/a | |
