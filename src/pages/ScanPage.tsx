@@ -104,9 +104,16 @@ function cameraFailure(error: unknown): FailureState {
 
 function failureFromError(error: unknown): FailureState {
   const appError = toAppError(error)
-  if (appError.code === 'MEMBERSHIP_INACTIVE') {
+  if (appError.code === 'MEMBERSHIP_INACTIVE' || appError.code === 'MEMBERSHIP_EXPIRED') {
     return {
-      title: 'Membership inactive',
+      title: appError.code === 'MEMBERSHIP_EXPIRED' ? 'Membership expired' : 'Membership inactive',
+      message: appError.message,
+      code: appError.code,
+    }
+  }
+  if (appError.code === 'MEMBERSHIP_PENDING') {
+    return {
+      title: 'Membership pending',
       message: appError.message,
       code: appError.code,
     }
@@ -547,7 +554,9 @@ export function ScanPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-amber-300/20 bg-amber-300/10 text-amber-200">
                 {failure.cameraIssue ? (
                   <CameraOff className="h-7 w-7" />
-                ) : failure.code === 'MEMBERSHIP_INACTIVE' ? (
+                ) : failure.code === 'MEMBERSHIP_INACTIVE' ||
+                  failure.code === 'MEMBERSHIP_EXPIRED' ||
+                  failure.code === 'MEMBERSHIP_PENDING' ? (
                   <CreditCard className="h-7 w-7" />
                 ) : (
                   <AlertTriangle className="h-7 w-7" />
@@ -561,7 +570,7 @@ export function ScanPage() {
               </p>
 
               <div className="mt-6 space-y-2.5">
-                {failure.code === 'MEMBERSHIP_INACTIVE' ? (
+                {failure.code === 'MEMBERSHIP_INACTIVE' || failure.code === 'MEMBERSHIP_EXPIRED' ? (
                   <Button
                     fullWidth
                     onClick={() => navigate('/membership')}

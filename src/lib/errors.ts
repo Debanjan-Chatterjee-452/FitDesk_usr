@@ -13,6 +13,8 @@ export type ErrorCode =
   | 'DUPLICATE_CHECKIN'
   | 'INVALID_QR'
   | 'MEMBERSHIP_INACTIVE'
+  | 'MEMBERSHIP_EXPIRED'
+  | 'MEMBERSHIP_PENDING'
   | 'GYM_CLOSED'
   | 'PACKAGE_NOT_FOUND'
   | 'PAYMENT_NOT_FOUND'
@@ -69,6 +71,14 @@ const RPC_MESSAGES: Record<string, { code: ErrorCode; message: string }> = {
   MEMBERSHIP_INACTIVE: {
     code: 'MEMBERSHIP_INACTIVE',
     message: 'Your membership is not active. Renew your plan to check in.',
+  },
+  MEMBERSHIP_EXPIRED: {
+    code: 'MEMBERSHIP_EXPIRED',
+    message: 'Your membership has expired. Renew your plan to check in again.',
+  },
+  MEMBERSHIP_PENDING: {
+    code: 'MEMBERSHIP_PENDING',
+    message: 'Your membership is pending approval. You can check in once the gym approves it.',
   },
   GYM_CLOSED: {
     code: 'GYM_CLOSED',
