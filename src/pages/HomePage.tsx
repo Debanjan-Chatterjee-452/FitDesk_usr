@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
   CalendarCheck2,
   ChevronRight,
@@ -21,6 +22,7 @@ import {
   usePendingPayment,
 } from '@/hooks/queries'
 import { Avatar } from '@/components/ui/Avatar'
+import { getAvatarSignedUrl } from '@/lib/api/profile'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PageSkeleton, Skeleton } from '@/components/ui/Skeleton'
@@ -42,6 +44,26 @@ import { formatINR, pluralize } from '@/lib/utils'
 export function HomePage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    const path = profile?.avatar_path
+    if (!path) {
+      setAvatarUrl(null)
+      return
+    }
+    void getAvatarSignedUrl(path)
+      .then((url) => {
+        if (active) setAvatarUrl(url)
+      })
+      .catch(() => {
+        if (active) setAvatarUrl(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [profile?.avatar_path])
+
   const now = useNow(30_000)
   const membershipQuery = useMembershipSnapshot()
   const gymQuery = useGymOverview()
@@ -165,7 +187,7 @@ export function HomePage() {
           ) : null}
           <ThemeToggle />
           <Link to="/profile" className="rounded-2xl focus-ring">
-            <Avatar name={profile?.full_name} size="md" />
+            <Avatar name={profile?.full_name} src={avatarUrl} size="md" />
             <span className="sr-only">Open profile</span>
           </Link>
         </div>
