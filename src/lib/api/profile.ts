@@ -14,6 +14,7 @@ export interface ProfileUpdate {
   legal_document_path?: string
   legal_document_name?: string
   legal_document_type?: string
+  avatar_path?: string | null
 }
 
 export interface UploadedDocument {
@@ -106,6 +107,7 @@ const EDITABLE_PROFILE_FIELDS: ReadonlyArray<keyof ProfileUpdate> = [
   'legal_document_path',
   'legal_document_name',
   'legal_document_type',
+  'avatar_path',
 ]
 
 export async function updateMyProfile(patch: ProfileUpdate): Promise<Profile> {
@@ -428,6 +430,125 @@ export async function getDocumentSignedUrl(path: string): Promise<string | null>
   } catch (error) {
     throw toAppError(error)
   }
+}
+
+const AVATAR_BUCKET = 'profile-avatars'
+const AVATAR_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
+export function validateAvatar(file: File): string | null {
+  if (!AVATAR_ALLOWED_MIME.includes(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) {
+    return 'Upload a JPG, PNG, WEBP or HEIC image.'
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    return 'That photo is over 5 MB. Please choose a smaller image.'
+  }
+  if (file.size === 0) {
+    return 'That file looks empty. Try another one.'
+  }
+  return null
+}
+
+export async function uploadAvatar(file: File): Promise<{ path: string }> {
+  const validationError = validateAvatar(file)
+  if (validationError) throw new AppError('UNKNOWN', validationError)
+
+  if (isDemo) {
+    const userId = await requireUserId()
+    return { path: `${userId}/demo-avatar.${getFileExtension(file.name) || 'jpg'}` }
+  }
+
+  try {
+    const userId = await requireUserId()
+    const extension = getFileExtension(file.name) || 'jpg'
+    const fingerprint = await documentFingerprint(file)
+    const path = `${userId}/avatar-${fingerprint}.${extension}`
+
+    const { error } = await getSupabase()
+      .storage.from(AVATAR_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || 'image/jpeg',
+      })
+
+    if (error && !isDuplicateObjectError(error)) throw mapAvatarUploadError(error)
+
+    return { path }
+  } catch (error) {
+    throw toAppError(error)
+  }
+}
+
+export async function saveAvatarReplacement(
+  file: File,
+  previousPath: string | null,
+): Promise<Profile> {
+  const uploaded = await uploadAvatar(file)
+  const saved = await updateMyProfile({ avatar_path: uploaded.path })
+
+  if (previousPath && previousPath !== uploaded.path) {
+    await deleteAvatar(previousPath)
+  }
+
+  return saved
+}
+
+export async function removeAvatar(previousPath: string | null): Promise<Profile> {
+  const saved = await updateMyProfile({ avatar_path: null })
+  if (previousPath) {
+    await deleteAvatar(previousPath)
+  }
+  return saved
+}
+
+export async function getAvatarSignedUrl(path: string | null): Promise<string | null> {
+  if (isDemo || !path) return null
+  try {
+    const { data, error } = await getSupabase()
+      .storage.from(AVATAR_BUCKET)
+      .createSignedUrl(path, 3600)
+    if (error) throw error
+    return data.signedUrl
+  } catch (error) {
+    throw toAppError(error)
+  }
+}
+
+async function deleteAvatar(path: string): Promise<void> {
+  if (isDemo || !path) return
+  try {
+    await getSupabase().storage.from(AVATAR_BUCKET).remove([path])
+  } catch {
+    // Orphaned objects are harmless.
+  }
+}
+
+function mapAvatarUploadError(error: unknown): unknown {
+  const status = errorField(error, 'statusCode')
+  const message = (errorField(error, 'message') ?? '').toLowerCase()
+
+  if (message.includes('bucket not found')) {
+    return new AppError(
+      'STORAGE_BLOCKED',
+      'The profile picture bucket (profile-avatars) is missing. Ask the gym admin to apply the migration, then try again.',
+      error,
+    )
+  }
+  if (message.includes('row-level security') || message.includes('permission')) {
+    return new AppError(
+      'STORAGE_BLOCKED',
+      'The profile picture upload was blocked by the storage access rules. Ask the gym admin to check the profile-avatars policies.',
+      error,
+    )
+  }
+  if (status === '413' || message.includes('too large') || message.includes('maximum allowed size')) {
+    return new AppError('UNKNOWN', 'That photo is larger than the 5 MB limit. Please choose a smaller image.', error)
+  }
+  if (message.includes('mime') || message.includes('content type')) {
+    return new AppError('UNKNOWN', 'That file type is not accepted. Upload a JPG, PNG, WEBP or HEIC image.', error)
+  }
+  return error
 }
 
 export function isProfileComplete(profile: Profile | null): boolean {

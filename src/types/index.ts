@@ -60,6 +60,8 @@ export interface Profile {
   legal_document_path: string | null
   legal_document_name: string | null
   legal_document_type: string | null
+  /** Private object path inside the profile-avatars bucket. */
+  avatar_path?: string | null
   profile_completed: boolean
   /** Admin role flag. Set by staff/SQL tooling; members cannot change it. */
   is_admin: boolean

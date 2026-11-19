@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FullScreenLoader } from '@/components/ui/FullScreenLoader'
 import { GeometricBackground } from '@/components/layout/GeometricBackground'
 import { useAuth } from '@/context/AuthProvider'
-import { getMyJoinRequests, requestJoinGym } from '@/lib/api/gymJoin'
+import { getMyJoinRequests, previewGymByJoinCode, requestJoinGym } from '@/lib/api/gymJoin'
 import { toAppError } from '@/lib/errors'
 
 /**
@@ -22,6 +22,8 @@ export function JoinGymPage() {
   const [error, setError] = useState<string | null>(null)
   const [requests, setRequests] = useState<Awaited<ReturnType<typeof getMyJoinRequests>>>([])
   const [loadingRequests, setLoadingRequests] = useState(true)
+  const [preview, setPreview] = useState<{ status: string; gym_name?: string } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const loadRequests = async () => {
     try {
@@ -36,6 +38,27 @@ export function JoinGymPage() {
   useEffect(() => {
     void loadRequests()
   }, [])
+
+  useEffect(() => {
+    const trimmed = code.trim()
+    if (!trimmed) {
+      setPreview(null)
+      setPreviewLoading(false)
+      return
+    }
+    setPreviewLoading(true)
+    const handle = window.setTimeout(async () => {
+      try {
+        const result = await previewGymByJoinCode(trimmed)
+        setPreview(result)
+      } catch {
+        setPreview({ status: 'not_found' })
+      } finally {
+        setPreviewLoading(false)
+      }
+    }, 350)
+    return () => window.clearTimeout(handle)
+  }, [code])
 
   if (profileLoading && !profile) {
     return <FullScreenLoader label="Loading your profile" />
@@ -153,6 +176,15 @@ export function JoinGymPage() {
                   autoComplete="off"
                   error={error ?? undefined}
                 />
+                {previewLoading ? (
+                  <p className="mt-1 text-xs text-muted">Checking code…</p>
+                ) : preview?.status === 'found' ? (
+                  <p className="mt-1 text-xs font-semibold text-success">
+                    ✓ {preview.gym_name}
+                  </p>
+                ) : preview?.status === 'not_found' ? (
+                  <p className="mt-1 text-xs text-danger">No gym matches that code.</p>
+                ) : null}
                 <Button
                   variant="primary"
                   onClick={() => void submit()}

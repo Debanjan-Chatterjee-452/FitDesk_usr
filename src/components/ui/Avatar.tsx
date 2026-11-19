@@ -2,6 +2,7 @@ import { cn, initials } from '@/lib/utils'
 
 interface AvatarProps {
   name: string | null | undefined
+  src?: string | null
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
 }
@@ -13,7 +14,7 @@ const SIZES = {
   xl: 'h-20 w-20 text-2xl rounded-[26px]',
 }
 
-export function Avatar({ name, size = 'md', className }: AvatarProps) {
+export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
   return (
     <div
       className={cn(
@@ -23,9 +24,20 @@ export function Avatar({ name, size = 'md', className }: AvatarProps) {
       )}
       aria-hidden="true"
     >
-      <span className="relative z-10">{initials(name)}</span>
-      <span className="absolute -right-3 -top-4 h-9 w-9 rounded-full bg-white/15 blur-[1px]" />
-      <span className="absolute -bottom-4 -left-2 h-8 w-8 rounded-full bg-black/10" />
+      {src ? (
+        <img
+          src={src}
+          alt={name ?? 'Member'}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <>
+          <span className="relative z-10">{initials(name)}</span>
+          <span className="absolute -right-3 -top-4 h-9 w-9 rounded-full bg-white/15 blur-[1px]" />
+          <span className="absolute -bottom-4 -left-2 h-8 w-8 rounded-full bg-black/10" />
+        </>
+      )}
     </div>
   )
 }

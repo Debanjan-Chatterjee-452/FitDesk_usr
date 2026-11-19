@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
   BadgeCheck,
   CalendarDays,
+  Camera,
   ChevronRight,
   CreditCard,
   Droplets,
@@ -24,6 +25,7 @@ import {
   Smartphone,
   Sparkles,
   Sun,
+  Trash2,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -33,9 +35,13 @@ import { useAuth } from '@/context/AuthProvider'
 import { useTheme, type ThemeMode } from '@/context/ThemeProvider'
 import { useAttendanceStats, useMembershipSnapshot } from '@/hooks/queries'
 import {
+  getAvatarSignedUrl,
   getDocumentSignedUrl,
+  removeAvatar,
+  saveAvatarReplacement,
   saveDocumentReplacement,
   updateMyProfile,
+  validateAvatar,
   validateLegalDocument,
   type ProfileUpdate,
 } from '@/lib/api/profile'
@@ -121,6 +127,12 @@ export function ProfilePage() {
   const [docError, setDocError] = useState<string | null>(null)
   const [savingDoc, setSavingDoc] = useState(false)
 
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [savingAvatar, setSavingAvatar] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -137,6 +149,25 @@ export function ProfilePage() {
 
   const [resetOpen, setResetOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const path = profile?.avatar_path
+    if (!path) {
+      setAvatarUrl(null)
+      return
+    }
+    void getAvatarSignedUrl(path)
+      .then((url) => {
+        if (active) setAvatarUrl(url)
+      })
+      .catch(() => {
+        if (active) setAvatarUrl(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [profile?.avatar_path])
 
   if (!profile) return <FullScreenLoader label="Loading your profile" />
 
@@ -234,6 +265,36 @@ export function ProfilePage() {
       setDocError(toAppError(error).message)
     } finally {
       setSavingDoc(false)
+    }
+  }
+
+  const saveAvatar = async () => {
+    if (!avatarFile) {
+      setAvatarError('Choose a photo to upload.')
+      return
+    }
+    const validation = validateAvatar(avatarFile)
+    if (validation) {
+      setAvatarError(validation)
+      return
+    }
+
+    setSavingAvatar(true)
+    setAvatarError(null)
+    try {
+      const saved = await saveAvatarReplacement(avatarFile, profile.avatar_path ?? null)
+      await refreshProfile()
+      const url = await getAvatarSignedUrl(saved.avatar_path ?? null)
+      setAvatarUrl(url)
+      setAvatarOpen(false)
+      setAvatarFile(null)
+      toast.success('Photo updated', {
+        description: 'Your profile picture is now on file.',
+      })
+    } catch (error) {
+      setAvatarError(toAppError(error).message)
+    } finally {
+      setSavingAvatar(false)
     }
   }
 
@@ -343,6 +404,7 @@ export function ProfilePage() {
               <div className="flex min-w-0 items-center gap-4">
                 <Avatar
                   name={profile.full_name}
+                  src={avatarUrl}
                   size="xl"
                   className="ring-2 ring-white/20"
                 />
@@ -404,6 +466,67 @@ export function ProfilePage() {
               />
               <MemberStat label="Sessions" value={String(stats.total)} />
             </div>
+          </section>
+
+          <section className="card p-5">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary-strong">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[15px] font-semibold text-ink">Profile photo</h2>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  Shown on your member card and to club staff.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-4">
+              <Avatar name={profile.full_name} src={avatarUrl} size="lg" />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setAvatarFile(null)
+                    setAvatarError(null)
+                    setAvatarOpen(true)
+                  }}
+                  leadingIcon={<Camera className="h-3.5 w-3.5" />}
+                >
+                  {profile.avatar_path ? 'Change photo' : 'Upload photo'}
+                </Button>
+                {profile.avatar_path ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={savingAvatar}
+                    onClick={async () => {
+                      setSavingAvatar(true)
+                      setAvatarError(null)
+                      try {
+                        await removeAvatar(profile.avatar_path ?? null)
+                        await refreshProfile()
+                        setAvatarUrl(null)
+                        toast.success('Photo removed')
+                      } catch (error) {
+                        setAvatarError(toAppError(error).message)
+                      } finally {
+                        setSavingAvatar(false)
+                      }
+                    }}
+                    leadingIcon={<Trash2 className="h-3.5 w-3.5" />}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            {avatarError ? (
+              <p className="mt-3 text-xs font-medium text-danger">{avatarError}</p>
+            ) : null}
           </section>
 
           <section className="card overflow-hidden">
@@ -957,6 +1080,50 @@ export function ProfilePage() {
             </p>
           </div>
         )}
+      </Sheet>
+
+      <Sheet
+        open={avatarOpen}
+        onOpenChange={(open) => {
+          if (!savingAvatar) setAvatarOpen(open)
+        }}
+        title="Profile photo"
+        description="Upload a clear photo of yourself. JPG, PNG, WEBP or HEIC, up to 5 MB."
+        footer={
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              fullWidth
+              disabled={savingAvatar}
+              onClick={() => setAvatarOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              fullWidth
+              loading={savingAvatar}
+              disabled={!avatarFile}
+              onClick={() => void saveAvatar()}
+            >
+              Upload photo
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <FileDropzone
+            file={avatarFile}
+            onFile={(file) => {
+              setAvatarFile(file)
+              setAvatarError(null)
+            }}
+            error={avatarError}
+            existingName={profile.avatar_path ? 'Current photo' : undefined}
+            disabled={savingAvatar}
+          />
+        </div>
       </Sheet>
 
       <Sheet

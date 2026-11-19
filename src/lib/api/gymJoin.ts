@@ -28,6 +28,25 @@ export async function requestJoinGym(joinCode: string): Promise<JoinRequestResul
   return data as JoinRequestResult
 }
 
+export async function previewGymByJoinCode(
+  joinCode: string,
+): Promise<{ status: string; gym_id?: string; gym_name?: string }> {
+  if (isDemo) {
+    if (!joinCode.trim()) return { status: 'empty' }
+    return { status: 'found', gym_id: 'demo-gym', gym_name: 'Demo Gym' }
+  }
+
+  const { data, error } = await getSupabase().rpc('preview_gym_by_join_code', {
+    p_join_code: joinCode,
+  })
+  if (error) throw toAppError(error)
+  return (data ?? { status: 'not_found' }) as {
+    status: string
+    gym_id?: string
+    gym_name?: string
+  }
+}
+
 /** The signed-in member's own join-requests (their own rows only, by RLS). */
 export async function getMyJoinRequests(): Promise<JoinRequestRow[]> {
   if (isDemo) {
