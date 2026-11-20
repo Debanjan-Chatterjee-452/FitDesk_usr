@@ -43,6 +43,7 @@ import {
 } from '@/lib/lateFee'
 import { verifyCashOtp } from '@/lib/api/cashOtp'
 import { toAppError } from '@/lib/errors'
+import { cn, formatDuration, formatINR } from '@/lib/utils'
 
 const PAYMENT_TONES = {
   pending: { tone: 'warning' as const, label: 'Pending verification' },
@@ -136,6 +137,8 @@ export function MembershipPage() {
       setVerifyingOtp(false)
     }
   }
+
+  const openRenewal = (pkg: GymPackage) => {
     if (pendingPayment) {
       toast.info('Payment awaiting verification', {
         description:
