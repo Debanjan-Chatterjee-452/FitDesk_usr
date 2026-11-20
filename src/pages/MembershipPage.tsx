@@ -41,7 +41,8 @@ import {
   FINE_GRACE_DAYS,
   FINE_START_DAY,
 } from '@/lib/lateFee'
-import { cn, formatDuration, formatINR } from '@/lib/utils'
+import { verifyCashOtp } from '@/lib/api/cashOtp'
+import { toAppError } from '@/lib/errors'
 
 const PAYMENT_TONES = {
   pending: { tone: 'warning' as const, label: 'Pending verification' },
@@ -94,6 +95,8 @@ export function MembershipPage() {
   const [selectedPackage, setSelectedPackage] = useState<GymPackage | null>(null)
   const [renewalOpen, setRenewalOpen] = useState(false)
   const [verification, setVerification] = useState<PaymentVerification | null>(null)
+  const [otpValue, setOtpValue] = useState('')
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
 
   const snapshot = membershipQuery.snapshot
   const membership = snapshot.membership
@@ -110,7 +113,29 @@ export function MembershipPage() {
   const declinedPayment =
     !pendingPayment && latestPayment?.status === 'declined' ? latestPayment : null
 
-  const openRenewal = (pkg: GymPackage) => {
+  const handleVerifyOtp = async () => {
+    if (!pendingPayment) return
+    const value = otpValue.trim()
+    if (!/^\d{5}$/.test(value)) {
+      toast.error('Enter the 5-digit OTP from the front desk.')
+      return
+    }
+    setVerifyingOtp(true)
+    try {
+      const result = await verifyCashOtp(pendingPayment.id, value)
+      setOtpValue('')
+      toast.success('Cash payment verified', {
+        description: `${result.package_name} is now active until ${formatKolkata(result.ends_on ?? '', 'd MMM yyyy')}.`,
+      })
+      void membershipQuery.refetch()
+      void paymentsQuery.refetch()
+      void pendingQuery.refetch()
+    } catch (error) {
+      toast.error(toAppError(error).message)
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
     if (pendingPayment) {
       toast.info('Payment awaiting verification', {
         description:
@@ -136,6 +161,35 @@ export function MembershipPage() {
         <PaymentStatusBanner kind="pending" payment={pendingPayment} />
       ) : declinedPayment ? (
         <PaymentStatusBanner kind="declined" payment={declinedPayment} />
+      ) : null}
+
+      {pendingPayment ? (
+        <section className="mt-3 rounded-2xl border border-line/80 bg-surface p-4">
+          <p className="text-[12px] font-semibold text-ink">Have a cash OTP?</p>
+          <p className="mt-0.5 text-[10.5px] text-muted">
+            Enter the 5-digit code the front desk gave you to verify a cash payment.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={5}
+              value={otpValue}
+              onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              placeholder="12345"
+              className="h-11 flex-1 rounded-xl border border-line bg-elevated px-3 text-center font-mono text-[16px] tracking-[0.3em] text-ink outline-none focus:border-primary"
+            />
+            <Button
+              variant="primary"
+              size="md"
+              loading={verifyingOtp}
+              disabled={otpValue.length !== 5}
+              onClick={() => void handleVerifyOtp()}
+            >
+              Verify
+            </Button>
+          </div>
+        </section>
       ) : null}
 
       <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(290px,1fr)] lg:items-start lg:gap-6">
