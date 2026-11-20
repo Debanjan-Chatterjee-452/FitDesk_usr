@@ -150,6 +150,8 @@ export interface Payment {
   upi_submitted_at?: string | null
   /** UPI ID recorded when the reference was submitted, for manual verification. */
   payee_upi_id?: string | null
+  /** Whether this payment included the gym admission fee. */
+  is_new_admission?: boolean
   created_at: string
   updated_at: string
   package?: Pick<GymPackage, 'id' | 'name' | 'duration_days'> | null

@@ -44,6 +44,7 @@ export interface DemoGym {
   upi_id: string | null
   upi_payee_name: string | null
   payment_qr_path: string | null
+  admission_fee_inr: number
   is_active: boolean
 }
 
@@ -157,6 +158,7 @@ export function buildDemoGyms(): DemoGym[] {
       upi_id: 'fitdesk@demo',
       upi_payee_name: 'FitDesk Performance Club (Demo)',
       payment_qr_path: null,
+      admission_fee_inr: 500,
       is_active: true,
     },
   ]
@@ -504,6 +506,7 @@ export function calculateDemoQuote(
   packageId: string,
   durationDays: number | null,
   db: DemoDatabase = loadDemoDatabase(),
+  isNewAdmission: boolean = false,
 ): RenewalQuote {
   const pkg = db.packages.find((item) => item.id === packageId && item.is_active)
   if (!pkg) throw new Error('PACKAGE_NOT_FOUND')
@@ -537,12 +540,18 @@ export function calculateDemoQuote(
 
   const baseAmount =
     pkg.pricing_mode === 'per_day' ? pkg.price_inr * duration : pkg.price_inr
+  const gym = (db.gyms ?? []).find((g) => g.is_active) ?? null
+  const admissionFee = isNewAdmission ? (gym?.admission_fee_inr ?? 0) : 0
+  const totalBase = baseAmount + admissionFee
   const startsOn = active ? addDaysToDate(active.ends_on, 1) : today
   const endsOn = addDaysToDate(startsOn, duration - 1)
 
   const breakdown: Array<{ label: string; amount: number }> = [
     { label: `${pkg.name} · ${duration} days`, amount: baseAmount },
   ]
+  if (admissionFee > 0) {
+    breakdown.push({ label: 'Admission fee', amount: admissionFee })
+  }
   if (fineAmount > 0) {
     breakdown.push({ label: 'Late renewal fee', amount: fineAmount })
   }
@@ -553,9 +562,9 @@ export function calculateDemoQuote(
     description: pkg.description,
     pricing_mode: pkg.pricing_mode,
     duration_days: duration,
-    base_amount: baseAmount,
+    base_amount: totalBase,
     fine_amount: fineAmount,
-    total_amount: baseAmount + fineAmount,
+    total_amount: totalBase + fineAmount,
     days_past_expiry: daysPastExpiry,
     grace_days: 7,
     starts_on: startsOn,

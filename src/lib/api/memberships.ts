@@ -149,6 +149,7 @@ export function pickMembershipOverview(
 export async function getMyRenewalQuote(
   packageId: string,
   durationDays?: number | null,
+  isNewAdmission?: boolean,
 ): Promise<RenewalQuote> {
   if (isDemo) {
     try {
@@ -163,6 +164,7 @@ export async function getMyRenewalQuote(
     const { data, error } = await getSupabase().rpc('get_my_renewal_quote', {
       p_package_id: packageId,
       p_duration_days: durationDays ?? null,
+      p_is_new_admission: isNewAdmission ?? false,
     })
     if (error) throw error
     if (!data) throw new Error('PACKAGE_NOT_FOUND')

@@ -193,10 +193,10 @@ export function useMarkPaymentRefunded() {
   })
 }
 
-export function useRenewalQuote(packageId: string | null, durationDays: number | null) {
+export function useRenewalQuote(packageId: string | null, durationDays: number | null, isNewAdmission?: boolean) {
   return useQuery({
     queryKey: queryKeys.quote(packageId ?? 'none', durationDays),
-    queryFn: () => getMyRenewalQuote(packageId!, durationDays),
+    queryFn: () => getMyRenewalQuote(packageId!, durationDays, isNewAdmission),
     enabled: Boolean(packageId),
     staleTime: 15_000,
   })
@@ -282,10 +282,12 @@ export function useReserveUpiCheckout() {
     mutationFn: ({
       packageId,
       durationDays,
+      isNewAdmission,
     }: {
       packageId: string
       durationDays?: number | null
-    }) => reserveUpiCheckout(packageId, durationDays),
+      isNewAdmission?: boolean
+    }) => reserveUpiCheckout(packageId, durationDays, isNewAdmission),
     onError: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments(userId ?? 'anonymous') })
       void queryClient.invalidateQueries({

@@ -93,6 +93,7 @@ function normalizeInstructions(raw: Record<string, unknown>): UpiPaymentInstruct
 export async function reserveUpiCheckout(
   packageId: string,
   durationDays?: number | null,
+  isNewAdmission?: boolean,
 ): Promise<UpiCheckoutReservation> {
   if (isDemo) {
     const userId = await requireUserId()
@@ -135,7 +136,7 @@ export async function reserveUpiCheckout(
       }
     }
 
-    const quote = calculateDemoQuote(userId, packageId, durationDays ?? null, db)
+    const quote = calculateDemoQuote(userId, packageId, durationDays ?? null, db, isNewAdmission ?? false)
     const pkg = db.packages.find((item) => item.id === packageId)
     const now = new Date().toISOString()
     const payment: Payment = {
@@ -169,6 +170,7 @@ export async function reserveUpiCheckout(
       upi_reference: null,
       upi_submitted_at: null,
       payee_upi_id: null,
+      is_new_admission: Boolean(isNewAdmission),
       created_at: now,
       updated_at: now,
       package: pkg ? { id: pkg.id, name: pkg.name, duration_days: pkg.duration_days } : null,
@@ -191,6 +193,7 @@ export async function reserveUpiCheckout(
     const { data, error } = await getSupabase().rpc('reserve_upi_checkout', {
       p_package_id: packageId,
       p_duration_days: durationDays ?? null,
+      p_is_new_admission: isNewAdmission ?? false,
     })
     if (error) throw error
     if (!data) throw new Error('PAYMENT_FAILED')

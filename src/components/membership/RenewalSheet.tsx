@@ -52,10 +52,12 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
   const [error, setError] = useState<string | null>(null)
   const [reservation, setReservation] = useState<UpiCheckoutReservation | null>(null)
   const [payAmount, setPayAmount] = useState<number | null>(null)
+  const [isNewAdmission, setIsNewAdmission] = useState(false)
 
   const quoteQuery = useRenewalQuote(
     open && pkg ? pkg.id : null,
     isPerDay ? duration : null,
+    isNewAdmission,
   )
   const reserveCheckout = useReserveUpiCheckout()
 
@@ -68,6 +70,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
     setError(null)
     setReservation(null)
     setPayAmount(null)
+    setIsNewAdmission(false)
     if (pkg?.pricing_mode === 'per_day') {
       setDuration(clamp(30, pkg.min_days ?? 7, pkg.max_days ?? 180))
     }
@@ -97,6 +100,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
       const result = await reserveCheckout.mutateAsync({
         packageId: pkg.id,
         durationDays: isPerDay ? duration : null,
+        isNewAdmission,
       })
 
       if (result.status === 'reconciliation_required') {
@@ -400,6 +404,22 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
             />
           ) : quote ? (
             <>
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line/80 bg-surface p-4 transition hover:border-primary/30">
+                <input
+                  type="checkbox"
+                  checked={isNewAdmission}
+                  onChange={(e) => setIsNewAdmission(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-line text-primary accent-primary"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-semibold text-ink">New admission</span>
+                  <span className="mt-0.5 block text-[10.5px] leading-relaxed text-muted">
+                    Check this if you are joining for the first time. An admission fee will be
+                    added to your total. Leave unchecked for renewals.
+                  </span>
+                </span>
+              </label>
+
               <div className="rounded-2xl border border-line/80 bg-surface p-4">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted">New validity</span>
