@@ -20,6 +20,8 @@ import { isDemo } from '@/lib/env'
 import { signIn } from '@/lib/api/auth'
 import { getSessionPersistence } from '@/lib/supabase'
 import { isProfileComplete } from '@/lib/api/profile'
+import { getMyMembershipOverview } from '@/lib/api/memberships'
+import { todayInKolkata } from '@/lib/kolkata'
 import { toAppError } from '@/lib/errors'
 import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demo/store'
 import { useAuth } from '@/context/AuthProvider'
@@ -58,9 +60,18 @@ export function LoginPage() {
       toast.success('Welcome back', {
         description: 'Your training desk is ready.',
       })
-      navigate(profile && isProfileComplete(profile) ? '/' : '/onboarding', {
-        replace: true,
-      })
+      if (profile && isProfileComplete(profile)) {
+        // Check for active membership; redirect to Membership if none.
+        try {
+          const overview = await getMyMembershipOverview()
+          const hasActive = Boolean(overview.current && overview.current.ends_on >= todayInKolkata())
+          navigate(hasActive ? '/' : '/membership', { replace: true })
+        } catch {
+          navigate('/', { replace: true })
+        }
+      } else {
+        navigate('/onboarding', { replace: true })
+      }
     } catch (error) {
       setFormError(toAppError(error).message)
     }

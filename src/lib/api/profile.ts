@@ -14,6 +14,7 @@ export interface ProfileUpdate {
   legal_document_path?: string
   legal_document_name?: string
   legal_document_type?: string
+  legal_document_id_number?: string | null
   avatar_path?: string | null
 }
 
@@ -107,6 +108,7 @@ const EDITABLE_PROFILE_FIELDS: ReadonlyArray<keyof ProfileUpdate> = [
   'legal_document_path',
   'legal_document_name',
   'legal_document_type',
+  'legal_document_id_number',
   'avatar_path',
 ]
 

@@ -280,6 +280,25 @@ export function exchangeEmailLink(code: string): Promise<void> {
   return promise
 }
 
+/**
+ * Permanently deletes the signed-in member's account and all associated data.
+ * After this, the member can re-register with the same email address.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  if (isDemo) {
+    await sleep(600)
+    clearDemoSession()
+    return
+  }
+  try {
+    const { error } = await getSupabase().rpc('delete_my_account')
+    if (error) throw error
+    await signOut()
+  } catch (error) {
+    throw toAppError(error)
+  }
+}
+
 export async function updatePassword(password: string): Promise<void> {
   if (isDemo) {
     await sleep(550)

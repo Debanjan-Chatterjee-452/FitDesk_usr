@@ -45,7 +45,7 @@ import {
   validateLegalDocument,
   type ProfileUpdate,
 } from '@/lib/api/profile'
-import { updatePassword } from '@/lib/api/auth'
+import { deleteMyAccount, updatePassword } from '@/lib/api/auth'
 import { appConfig, isDemo } from '@/lib/env'
 import { toAppError } from '@/lib/errors'
 import { ageFromDob, formatKolkata, todayInKolkata } from '@/lib/kolkata'
@@ -90,6 +90,7 @@ interface DetailsForm {
   dateOfBirth: string
   gender: Gender | null
   bloodGroup: BloodGroup | null
+  documentIdNumber: string
 }
 
 interface DetailsErrors {
@@ -97,6 +98,7 @@ interface DetailsErrors {
   dateOfBirth?: string
   gender?: string
   bloodGroup?: string
+  documentIdNumber?: string
 }
 
 export function ProfilePage() {
@@ -117,6 +119,7 @@ export function ProfilePage() {
     dateOfBirth: '',
     gender: null,
     bloodGroup: null,
+    documentIdNumber: '',
   })
   const [errors, setErrors] = useState<DetailsErrors>({})
   const [editError, setEditError] = useState<string | null>(null)
@@ -146,6 +149,9 @@ export function ProfilePage() {
 
   const [signOutOpen, setSignOutOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [resetOpen, setResetOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -188,6 +194,7 @@ export function ProfilePage() {
       dateOfBirth: profile.date_of_birth ?? '',
       gender: profile.gender,
       bloodGroup: profile.blood_group,
+      documentIdNumber: profile.legal_document_id_number ?? '',
     })
     setErrors({})
     setEditError(null)
@@ -208,6 +215,10 @@ export function ProfilePage() {
     }
     if (!form.gender) nextErrors.gender = 'Select a gender option.'
     if (!form.bloodGroup) nextErrors.bloodGroup = 'Select your blood group.'
+    const idNumber = form.documentIdNumber.trim()
+    if (idNumber && !/^[A-Za-z0-9-]{4,20}$/.test(idNumber)) {
+      nextErrors.documentIdNumber = 'Enter a valid document ID (4-20 letters, numbers or hyphens).'
+    }
 
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
@@ -220,6 +231,7 @@ export function ProfilePage() {
         date_of_birth: form.dateOfBirth,
         gender: form.gender ?? undefined,
         blood_group: form.bloodGroup ?? undefined,
+        legal_document_id_number: idNumber || null,
       }
       await updateMyProfile(patch)
       await refreshProfile()
@@ -359,6 +371,22 @@ export function ProfilePage() {
       setPasswordError(toAppError(error).message)
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    try {
+      await deleteMyAccount()
+      toast.success('Account deleted', {
+        description: 'You can create a new account anytime.',
+      })
+      navigate('/signup', { replace: true })
+    } catch (error) {
+      toast.error(toAppError(error).message)
+    } finally {
+      setDeleting(false)
+      setDeleteOpen(false)
     }
   }
 
@@ -785,6 +813,23 @@ export function ProfilePage() {
                 </span>
                 <ChevronRight className="h-4 w-4 text-faint" />
               </button>
+
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="flex w-full items-center gap-3 border-t border-line/60 px-5 py-3.5 text-left transition hover:bg-danger/[0.04]"
+              >
+                <Trash2 className="h-[17px] w-[17px] text-danger" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-semibold text-danger">
+                    Delete account
+                  </span>
+                  <span className="block text-[10.5px] text-muted">
+                    Permanently remove your account and data
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-faint" />
+              </button>
             </div>
           </section>
 
@@ -942,6 +987,19 @@ export function ProfilePage() {
               <p className="mt-2 text-xs font-medium text-danger">{errors.bloodGroup}</p>
             ) : null}
           </div>
+
+          <Input
+            label="Document ID number"
+            value={form.documentIdNumber}
+            onChange={(event) => {
+              setForm((current) => ({ ...current, documentIdNumber: event.target.value }))
+              setErrors((current) => ({ ...current, documentIdNumber: undefined }))
+            }}
+            placeholder="e.g. 1234 5678 9012"
+            leading={<Fingerprint className="h-[18px] w-[18px]" />}
+            error={errors.documentIdNumber}
+            hint="Enter the ID number printed on your uploaded document."
+          />
 
           {editError ? (
             <div
@@ -1233,6 +1291,46 @@ export function ProfilePage() {
               {profile.email || prettyPhone(profile.phone)}
             </p>
           </div>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open)
+        }}
+        title="Delete your account?"
+        description="This permanently removes your account and all associated data. You can create a new account afterward."
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              fullWidth
+              disabled={deleting}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              fullWidth
+              loading={deleting}
+              onClick={() => void handleDeleteAccount()}
+            >
+              Delete account
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex items-start gap-2.5 rounded-2xl border border-danger/15 bg-danger/[0.05] p-3.5">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+          <p className="text-[12px] leading-relaxed text-danger">
+            This action cannot be undone. Your membership, payments, and attendance
+            history will be permanently removed.
+          </p>
         </div>
       </Sheet>
 

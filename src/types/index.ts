@@ -60,6 +60,8 @@ export interface Profile {
   legal_document_path: string | null
   legal_document_name: string | null
   legal_document_type: string | null
+  /** ID number printed on the uploaded legal document. */
+  legal_document_id_number?: string | null
   /** Private object path inside the profile-avatars bucket. */
   avatar_path?: string | null
   profile_completed: boolean
