@@ -244,7 +244,7 @@ export function ProfileSetupPage() {
   const StepIcon = STEPS[step].icon
 
   return (
-    <div className="relative min-h-[100svh] overflow-hidden">
+    <div className="relative min-h-screen">
       <GeometricBackground />
       <div className="relative mx-auto w-full max-w-5xl px-5 pb-12 sm:px-6">
         <header className="safe-top flex items-center justify-between py-3">
