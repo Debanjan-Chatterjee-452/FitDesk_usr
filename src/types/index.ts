@@ -177,6 +177,8 @@ export interface GymSettings {
   close_time: string
   closed_weekdays: number[]
   contact_phone: string | null
+  /** One-time admission fee set by the gym admin; 0 means disabled. */
+  admission_fee_inr?: number | null
   updated_at: string
 }
 

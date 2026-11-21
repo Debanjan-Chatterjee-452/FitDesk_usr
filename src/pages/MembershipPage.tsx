@@ -28,6 +28,7 @@ import { PackageCard } from '@/components/membership/PackageCard'
 import { RenewalSheet } from '@/components/membership/RenewalSheet'
 import { ExpiryWarningBanner } from '@/components/membership/ExpiryWarningBanner'
 import {
+  useGymOverview,
   useMembershipSnapshot,
   useNow,
   usePackages,
@@ -90,6 +91,7 @@ export function MembershipPage() {
   const navigate = useNavigate()
   const membershipQuery = useMembershipSnapshot()
   const packagesQuery = usePackages()
+  const overviewQuery = useGymOverview()
   const paymentsQuery = usePayments()
   const pendingQuery = usePendingPayment()
   const now = useNow(30_000)
@@ -103,6 +105,7 @@ export function MembershipPage() {
   const membership = snapshot.membership
   const upcoming = membershipQuery.upcoming
   const currentPackageId = membership?.package_id ?? null
+  const admissionFee = overviewQuery.data?.settings?.admission_fee_inr ?? 0
   const pendingPayment = pendingQuery.data ?? null
   const reconciliationPayment =
     pendingPayment &&
@@ -331,6 +334,23 @@ export function MembershipPage() {
                 </Badge>
               }
             />
+            <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-line/80 bg-surface p-3.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                <IndianRupee className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11.5px] font-semibold text-ink">
+                  {admissionFee > 0
+                    ? `One-time admission fee: ${formatINR(admissionFee)}`
+                    : 'No admission fee'}
+                </p>
+                <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
+                  {admissionFee > 0
+                    ? 'Applies to new admissions only. Renewing an existing membership is exempt.'
+                    : 'This gym does not charge an admission fee for new members.'}
+                </p>
+              </div>
+            </div>
             {packagesQuery.isError ? (
               <ErrorState
                 title="Plans are unavailable"

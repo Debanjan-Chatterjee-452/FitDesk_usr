@@ -195,7 +195,10 @@ export function useMarkPaymentRefunded() {
 
 export function useRenewalQuote(packageId: string | null, durationDays: number | null, isNewAdmission?: boolean) {
   return useQuery({
-    queryKey: queryKeys.quote(packageId ?? 'none', durationDays),
+    queryKey: queryKeys.quote(
+      `${packageId ?? 'none'}:${isNewAdmission ? 'new' : 'renewal'}`,
+      durationDays,
+    ),
     queryFn: () => getMyRenewalQuote(packageId!, durationDays, isNewAdmission),
     enabled: Boolean(packageId),
     staleTime: 15_000,
