@@ -53,7 +53,7 @@ export function CheckEmailPage() {
       }
       setResendIn(30)
       toast.success('Email sent', {
-        description: `Check ${pending.email} for the latest link.`,
+        description: `Please check your inbox and spam folder, or try again in a few minutes.`,
       })
     } catch (resendError) {
       setError(toAppError(resendError).message)

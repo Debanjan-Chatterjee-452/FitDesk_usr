@@ -90,7 +90,7 @@ export function SignupPage() {
       if (result.needsConfirmation) {
         setPendingAuth(values.email, 'signup')
         toast.success('Check your inbox', {
-          description: `We sent a confirmation link to ${values.email}.`,
+          description: `We sent a confirmation link to ${values.email}. Please check your spam folder too.`,
         })
         navigate('/check-email', { replace: true })
         return

@@ -171,7 +171,7 @@ export function LoginPage() {
               try {
                 await resendConfirmationEmail(email)
                 toast.success('Confirmation email sent', {
-                  description: `Check ${email} for the latest link.`,
+                  description: `Please check your inbox and spam folder, or try again in a few minutes.`,
                 })
               } catch (err) {
                 toast.error(toAppError(err).message)
