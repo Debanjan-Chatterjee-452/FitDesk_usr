@@ -17,7 +17,7 @@ import { Input, PasswordInput } from '@/components/ui/Input'
 import { Toggle } from '@/components/ui/Toggle'
 import { Button } from '@/components/ui/Button'
 import { isDemo } from '@/lib/env'
-import { signIn } from '@/lib/api/auth'
+import { resendConfirmationEmail, signIn } from '@/lib/api/auth'
 import { getSessionPersistence } from '@/lib/supabase'
 import { isProfileComplete } from '@/lib/api/profile'
 import { getMyMembershipOverview } from '@/lib/api/memberships'
@@ -157,6 +157,31 @@ export function LoginPage() {
         >
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
+
+        <p className="text-center text-[11px] text-muted">
+          Didn't get your confirmation email?{' '}
+          <button
+            type="button"
+            onClick={async () => {
+              const email = (document.querySelector<HTMLInputElement>('input[type="email"]')?.value ?? '').trim()
+              if (!email) {
+                toast.error('Enter your email address first.')
+                return
+              }
+              try {
+                await resendConfirmationEmail(email)
+                toast.success('Confirmation email sent', {
+                  description: `Check ${email} for the latest link.`,
+                })
+              } catch (err) {
+                toast.error(toAppError(err).message)
+              }
+            }}
+            className="font-semibold text-primary-strong underline decoration-primary/30 underline-offset-4 hover:decoration-primary"
+          >
+            Resend it
+          </button>
+        </p>
 
         <div className="flex items-center justify-center gap-4 pt-1 text-[10.5px] font-medium text-faint">
           <span className="inline-flex items-center gap-1.5">
