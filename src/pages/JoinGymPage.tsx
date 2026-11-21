@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LogOut, CheckCircle2, Clock3, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Logo } from '@/components/ui/Logo'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { FullScreenLoader } from '@/components/ui/FullScreenLoader'
 import { GeometricBackground } from '@/components/layout/GeometricBackground'
 import { useAuth } from '@/context/AuthProvider'
+import { isProfileComplete } from '@/lib/api/profile'
 import { getMyJoinRequests, previewGymByJoinCode, requestJoinGym } from '@/lib/api/gymJoin'
 import { toAppError } from '@/lib/errors'
 
@@ -17,6 +19,7 @@ import { toAppError } from '@/lib/errors'
  */
 export function JoinGymPage() {
   const { profile, profileLoading, refreshProfile, signOutMember } = useAuth()
+  const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,8 +87,8 @@ export function JoinGymPage() {
     }
   }
 
-  const pending = requests.filter((item) => item.status === 'pending')
-  const declined = requests.filter((item) => item.status === 'declined')
+  const pending = requests.filter((item: { status: string; gym_name: string | null }) => item.status === 'pending')
+  const declined = requests.filter((item: { status: string; gym_name: string | null }) => item.status === 'declined')
 
   return (
     <div className="relative flex min-h-[100svh] flex-col bg-bg text-ink">
@@ -142,17 +145,19 @@ export function JoinGymPage() {
               </div>
             )}
 
-            {requests.some((item) => item.status === 'approved') && (
+            {requests.some((item: { status: string }) => item.status === 'approved') && (
               <div className="flex items-start gap-3 rounded-2xl border border-success/40 bg-success/10 p-4">
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-ink">You are approved</p>
-                  <p className="mt-0.5 text-xs text-muted">Reload to enter the gym app.</p>
+                  <p className="mt-0.5 text-xs text-muted">Tap below to enter FitDesk.</p>
                   <Button
                     className="mt-2"
                     size="sm"
                     variant="primary"
-                    onClick={() => void refreshProfile().then(() => window.location.reload())}
+                    onClick={() => void refreshProfile().then((p) => {
+                      navigate(p && isProfileComplete(p) ? '/' : '/onboarding', { replace: true })
+                    })}
                   >
                     Enter FitDesk
                   </Button>
