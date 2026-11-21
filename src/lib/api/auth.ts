@@ -150,6 +150,15 @@ export async function signUp(
       },
     })
     if (error) throw error
+    // Supabase silently returns a user with an empty identities array when
+    // the email is already registered (to prevent email enumeration). Treat
+    // that as a hard error so the member is not told an email was sent.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new AppError(
+        'USER_EXISTS',
+        'An account already exists with this email. If you deleted it recently, the removal may still be processing — please try again in a few minutes, or sign in instead.',
+      )
+    }
     return {
       needsConfirmation: !data.session,
       userId: data.user?.id ?? null,
