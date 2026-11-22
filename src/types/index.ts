@@ -8,6 +8,12 @@ export type BloodGroup =
   | 'AB-'
   | 'O+'
   | 'O-'
+export type LegalDocumentType =
+  | 'Aadhaar Card'
+  | 'PAN Card'
+  | 'Driving Licence'
+  | 'Passport'
+  | 'Voter ID'
 
 export type MembershipStatus = 'pending' | 'active' | 'expired' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'declined'
@@ -59,9 +65,12 @@ export interface Profile {
   gender: Gender | null
   legal_document_path: string | null
   legal_document_name: string | null
-  legal_document_type: string | null
+  /** MIME type of the uploaded file (image/jpeg, application/pdf, ...). */
+  legal_document_mime_type: string | null
+  /** Kind of identity document the member selected. */
+  legal_document_type: LegalDocumentType | null
   /** ID number printed on the uploaded legal document. */
-  legal_document_id_number?: string | null
+  legal_document_number?: string | null
   /** Private object path inside the profile-avatars bucket. */
   avatar_path?: string | null
   profile_completed: boolean

@@ -124,6 +124,7 @@ export async function signUp(
         gender: null,
         legal_document_path: null,
         legal_document_name: null,
+        legal_document_mime_type: null,
         legal_document_type: null,
         profile_completed: false,
         is_admin: false,

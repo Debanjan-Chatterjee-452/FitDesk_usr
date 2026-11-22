@@ -92,6 +92,7 @@ function addReviewer(db: DemoDatabase): string {
       gender: null,
       legal_document_path: null,
       legal_document_name: null,
+      legal_document_mime_type: null,
       legal_document_type: null,
       profile_completed: true,
       is_admin: true,

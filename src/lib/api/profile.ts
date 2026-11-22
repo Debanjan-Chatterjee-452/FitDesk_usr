@@ -1,4 +1,4 @@
-import type { BloodGroup, Gender, Profile } from '@/types'
+import type { BloodGroup, Gender, LegalDocumentType, Profile } from '@/types'
 import { isDemo } from '@/lib/env'
 import { AppError, toAppError } from '@/lib/errors'
 import { getSupabase } from '@/lib/supabase'
@@ -13,8 +13,9 @@ export interface ProfileUpdate {
   gender?: Gender
   legal_document_path?: string
   legal_document_name?: string
-  legal_document_type?: string
-  legal_document_id_number?: string | null
+  legal_document_mime_type?: string
+  legal_document_type?: LegalDocumentType | null
+  legal_document_number?: string | null
   avatar_path?: string | null
 }
 
@@ -107,8 +108,9 @@ const EDITABLE_PROFILE_FIELDS: ReadonlyArray<keyof ProfileUpdate> = [
   'gender',
   'legal_document_path',
   'legal_document_name',
+  'legal_document_mime_type',
   'legal_document_type',
-  'legal_document_id_number',
+  'legal_document_number',
   'avatar_path',
 ]
 
@@ -397,7 +399,7 @@ export async function saveDocumentReplacement(
     ...patch,
     legal_document_path: uploaded.path,
     legal_document_name: uploaded.name,
-    legal_document_type: uploaded.type,
+    legal_document_mime_type: uploaded.type,
   })
 
   // Only now does the row point at the replacement.

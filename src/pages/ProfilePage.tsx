@@ -30,7 +30,7 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { BloodGroup, Gender } from '@/types'
+import type { BloodGroup, Gender, LegalDocumentType } from '@/types'
 import { useAuth } from '@/context/AuthProvider'
 import { useTheme, type ThemeMode } from '@/context/ThemeProvider'
 import { useAttendanceStats, useMembershipSnapshot } from '@/hooks/queries'
@@ -49,6 +49,13 @@ import { deleteMyAccount, updatePassword } from '@/lib/api/auth'
 import { appConfig, isDemo } from '@/lib/env'
 import { toAppError } from '@/lib/errors'
 import { ageFromDob, formatKolkata, todayInKolkata } from '@/lib/kolkata'
+import {
+  LEGAL_DOCUMENT_TYPES,
+  documentNumberHint,
+  documentNumberPlaceholder,
+  sanitizeDocumentNumber,
+  validateLegalDocumentNumber,
+} from '@/lib/documents'
 import { resetDemoDatabase } from '@/lib/demo/store'
 import { cn, prettyPhone } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -57,6 +64,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input, PasswordInput } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { FileDropzone } from '@/components/ui/FileDropzone'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
@@ -90,7 +98,8 @@ interface DetailsForm {
   dateOfBirth: string
   gender: Gender | null
   bloodGroup: BloodGroup | null
-  documentIdNumber: string
+  documentType: LegalDocumentType | null
+  documentNumber: string
 }
 
 interface DetailsErrors {
@@ -98,7 +107,8 @@ interface DetailsErrors {
   dateOfBirth?: string
   gender?: string
   bloodGroup?: string
-  documentIdNumber?: string
+  documentType?: string
+  documentNumber?: string
 }
 
 export function ProfilePage() {
@@ -119,7 +129,8 @@ export function ProfilePage() {
     dateOfBirth: '',
     gender: null,
     bloodGroup: null,
-    documentIdNumber: '',
+    documentType: null,
+    documentNumber: '',
   })
   const [errors, setErrors] = useState<DetailsErrors>({})
   const [editError, setEditError] = useState<string | null>(null)
@@ -185,7 +196,7 @@ export function ProfilePage() {
   const maxDob = `${Number(today.slice(0, 4)) - 12}${today.slice(4)}`
   const minDob = `${Number(today.slice(0, 4)) - 100}${today.slice(4)}`
   const isImageDocument =
-    profile.legal_document_type?.startsWith('image/') ||
+    profile.legal_document_mime_type?.startsWith('image/') ||
     /\.(jpe?g|png|webp|heic|heif)$/i.test(profile.legal_document_name ?? '')
 
   const openEdit = () => {
@@ -194,7 +205,8 @@ export function ProfilePage() {
       dateOfBirth: profile.date_of_birth ?? '',
       gender: profile.gender,
       bloodGroup: profile.blood_group,
-      documentIdNumber: profile.legal_document_id_number ?? '',
+      documentType: profile.legal_document_type ?? null,
+      documentNumber: profile.legal_document_number ?? '',
     })
     setErrors({})
     setEditError(null)
@@ -215,9 +227,14 @@ export function ProfilePage() {
     }
     if (!form.gender) nextErrors.gender = 'Select a gender option.'
     if (!form.bloodGroup) nextErrors.bloodGroup = 'Select your blood group.'
-    const idNumber = form.documentIdNumber.trim()
-    if (idNumber && !/^[A-Za-z0-9-]{4,20}$/.test(idNumber)) {
-      nextErrors.documentIdNumber = 'Enter a valid document ID (4-20 letters, numbers or hyphens).'
+
+    const hasDocumentDetails = Boolean(form.documentType) || form.documentNumber.trim() !== ''
+    if (hasDocumentDetails) {
+      if (!form.documentType) {
+        nextErrors.documentType = 'Select the type of document you uploaded.'
+      }
+      const numberError = validateLegalDocumentNumber(form.documentType, form.documentNumber)
+      if (numberError) nextErrors.documentNumber = numberError
     }
 
     setErrors(nextErrors)
@@ -231,7 +248,10 @@ export function ProfilePage() {
         date_of_birth: form.dateOfBirth,
         gender: form.gender ?? undefined,
         blood_group: form.bloodGroup ?? undefined,
-        legal_document_id_number: idNumber || null,
+        legal_document_type: form.documentType,
+        legal_document_number: form.documentNumber
+          ? sanitizeDocumentNumber(form.documentType, form.documentNumber)
+          : null,
       }
       await updateMyProfile(patch)
       await refreshProfile()
@@ -628,13 +648,21 @@ export function ProfilePage() {
                   {profile.legal_document_name ?? 'Verification document'}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {profile.legal_document_type === 'application/pdf'
+                  {profile.legal_document_mime_type === 'application/pdf'
                     ? 'PDF'
                     : isImageDocument
                       ? 'Image'
                       : 'Document'}{' '}
                   · stored in a private bucket
                 </p>
+                {profile.legal_document_type || profile.legal_document_number ? (
+                  <p className="mt-1 text-[11px] text-muted">
+                    {profile.legal_document_type ?? 'Document'}
+                    {profile.legal_document_number
+                      ? ` · ${profile.legal_document_number}`
+                      : ''}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -988,17 +1016,55 @@ export function ProfilePage() {
             ) : null}
           </div>
 
-          <Input
-            label="Document ID number"
-            value={form.documentIdNumber}
+          <Select
+            id="profile-document-type"
+            label="Document type"
+            value={form.documentType ?? ''}
             onChange={(event) => {
-              setForm((current) => ({ ...current, documentIdNumber: event.target.value }))
-              setErrors((current) => ({ ...current, documentIdNumber: undefined }))
+              const nextType = (event.target.value || null) as LegalDocumentType | null
+              setForm((current) => ({
+                ...current,
+                documentType: nextType,
+                documentNumber: sanitizeDocumentNumber(
+                  nextType,
+                  current.documentNumber,
+                ),
+              }))
+              setErrors((current) => ({
+                ...current,
+                documentType: undefined,
+                documentNumber: undefined,
+              }))
             }}
-            placeholder="e.g. 1234 5678 9012"
+            error={errors.documentType}
+          >
+            <option value="">Select a document type</option>
+            {LEGAL_DOCUMENT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Select>
+
+          <Input
+            label="Document number"
+            value={form.documentNumber}
+            onChange={(event) => {
+              const nextNumber = sanitizeDocumentNumber(
+                form.documentType,
+                event.target.value,
+              )
+              setForm((current) => ({ ...current, documentNumber: nextNumber }))
+              setErrors((current) => ({ ...current, documentNumber: undefined }))
+            }}
+            placeholder={documentNumberPlaceholder(form.documentType)}
             leading={<Fingerprint className="h-[18px] w-[18px]" />}
-            error={errors.documentIdNumber}
-            hint="Enter the ID number printed on your uploaded document."
+            error={errors.documentNumber}
+            hint={documentNumberHint(form.documentType)}
+            inputMode={form.documentType === 'Aadhaar Card' ? 'numeric' : 'text'}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
           />
 
           {editError ? (

@@ -120,6 +120,7 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
     gender: 'female',
     legal_document_path: null,
     legal_document_name: null,
+    legal_document_mime_type: null,
     legal_document_type: null,
     profile_completed: false,
     is_admin: false,

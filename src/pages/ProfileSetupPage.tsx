@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   FileText,
+  Fingerprint,
   HeartPulse,
   IdCard,
   LogOut,
@@ -19,6 +20,7 @@ import { toast } from 'sonner'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { FileDropzone } from '@/components/ui/FileDropzone'
 import { Button } from '@/components/ui/Button'
 import { FullScreenLoader } from '@/components/ui/FullScreenLoader'
@@ -32,9 +34,16 @@ import {
   validateLegalDocument,
 } from '@/lib/api/profile'
 import { toAppError } from '@/lib/errors'
+import {
+  LEGAL_DOCUMENT_TYPES,
+  documentNumberHint,
+  documentNumberPlaceholder,
+  sanitizeDocumentNumber,
+  validateLegalDocumentNumber,
+} from '@/lib/documents'
 import { ageFromDob, formatKolkata, todayInKolkata } from '@/lib/kolkata'
 import { cn, prettyPhone } from '@/lib/utils'
-import type { BloodGroup, Gender } from '@/types'
+import type { BloodGroup, Gender, LegalDocumentType } from '@/types'
 
 const STEPS = [
   {
@@ -78,6 +87,8 @@ interface FormState {
   dateOfBirth: string
   gender: Gender | null
   bloodGroup: BloodGroup | null
+  documentType: LegalDocumentType | null
+  documentNumber: string
 }
 
 interface FieldErrors {
@@ -85,6 +96,8 @@ interface FieldErrors {
   dateOfBirth?: string
   gender?: string
   bloodGroup?: string
+  documentType?: string
+  documentNumber?: string
   document?: string
   consent?: string
 }
@@ -107,6 +120,8 @@ export function ProfileSetupPage() {
     dateOfBirth: '',
     gender: null,
     bloodGroup: null,
+    documentType: null,
+    documentNumber: '',
   })
   const [file, setFile] = useState<File | null>(null)
   const [consent, setConsent] = useState(false)
@@ -123,6 +138,8 @@ export function ProfileSetupPage() {
       dateOfBirth: profile.date_of_birth ?? '',
       gender: profile.gender ?? null,
       bloodGroup: profile.blood_group ?? null,
+      documentType: profile.legal_document_type ?? null,
+      documentNumber: profile.legal_document_number ?? '',
     })
   }, [profile])
 
@@ -134,7 +151,7 @@ export function ProfileSetupPage() {
   const existingDocument = profile?.legal_document_path
     ? {
         name: profile.legal_document_name ?? 'Legal document',
-        type: profile.legal_document_type ?? 'application/pdf',
+        type: profile.legal_document_mime_type ?? 'application/pdf',
       }
     : null
 
@@ -185,6 +202,11 @@ export function ProfileSetupPage() {
         const fileError = validateLegalDocument(file)
         if (fileError) next.document = fileError
       }
+      if (!form.documentType) {
+        next.documentType = 'Select the type of document you uploaded.'
+      }
+      const numberError = validateLegalDocumentNumber(form.documentType, form.documentNumber)
+      if (numberError) next.documentNumber = numberError
     }
     if (index === 2 && !consent) {
       next.consent = 'Please confirm the details and accept the declaration.'
@@ -213,6 +235,10 @@ export function ProfileSetupPage() {
         date_of_birth: form.dateOfBirth,
         blood_group: form.bloodGroup ?? undefined,
         gender: form.gender ?? undefined,
+        legal_document_type: form.documentType ?? undefined,
+        legal_document_number: form.documentNumber
+          ? sanitizeDocumentNumber(form.documentType, form.documentNumber)
+          : null,
       }
 
       setPhase(file ? 'uploading' : 'saving')
@@ -488,20 +514,76 @@ export function ProfileSetupPage() {
                     <p className="mb-2 text-[13px] font-semibold text-ink">
                       Legal document <span className="text-danger">*</span>
                     </p>
-                    <FileDropzone
-                      file={file}
-                      onFile={(nextFile) => {
-                        setFile(nextFile)
-                        setErrors((value) => ({ ...value, document: undefined }))
-                      }}
-                      error={errors.document}
-                      existingName={existingDocument?.name}
-                      disabled={phase !== 'idle'}
-                    />
+
+                    <div className="space-y-4">
+                      <Select
+                        id="legal-document-type"
+                        label="Document type"
+                        value={form.documentType ?? ''}
+                        onChange={(event) => {
+                          const nextType = (event.target.value || null) as LegalDocumentType | null
+                          setForm((value) => ({
+                            ...value,
+                            documentType: nextType,
+                            documentNumber: sanitizeDocumentNumber(
+                              nextType,
+                              value.documentNumber,
+                            ),
+                          }))
+                          setErrors((value) => ({
+                            ...value,
+                            documentType: undefined,
+                            documentNumber: undefined,
+                          }))
+                        }}
+                        error={errors.documentType}
+                      >
+                        <option value="">Select a document type</option>
+                        {LEGAL_DOCUMENT_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </Select>
+
+                      <Input
+                        label="Document number"
+                        value={form.documentNumber}
+                        onChange={(event) => {
+                          const nextNumber = sanitizeDocumentNumber(
+                            form.documentType,
+                            event.target.value,
+                          )
+                          setForm((value) => ({ ...value, documentNumber: nextNumber }))
+                          setErrors((value) => ({ ...value, documentNumber: undefined }))
+                        }}
+                        placeholder={documentNumberPlaceholder(form.documentType)}
+                        hint={documentNumberHint(form.documentType)}
+                        error={errors.documentNumber}
+                        inputMode={form.documentType === 'Aadhaar Card' ? 'numeric' : 'text'}
+                        autoCapitalize="characters"
+                        autoComplete="off"
+                        spellCheck={false}
+                        leading={<Fingerprint className="h-[18px] w-[18px]" />}
+                        required
+                      />
+
+                      <FileDropzone
+                        file={file}
+                        onFile={(nextFile) => {
+                          setFile(nextFile)
+                          setErrors((value) => ({ ...value, document: undefined }))
+                        }}
+                        error={errors.document}
+                        existingName={existingDocument?.name}
+                        disabled={phase !== 'idle'}
+                      />
+                    </div>
+
                     <p className="mt-2.5 flex items-start gap-1.5 text-[10.5px] leading-relaxed text-muted">
                       <IdCard className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-strong" />
-                      Accepted: Aadhaar, passport, driving licence, or voter ID. Your document
-                      is stored privately and never shown on your public profile.
+                      Accepted: Aadhaar, PAN, driving licence, passport, or voter ID. Your
+                      document is stored privately and never shown on your public profile.
                     </p>
                   </div>
                 </div>
@@ -521,6 +603,15 @@ export function ProfileSetupPage() {
                         value={form.gender ? GENDER_LABELS[form.gender] : '—'}
                       />
                       <ReviewRow label="Blood group" value={form.bloodGroup ?? '—'} />
+                      <ReviewRow label="Document type" value={form.documentType ?? '—'} />
+                      <ReviewRow
+                        label="Document number"
+                        value={
+                          form.documentNumber
+                            ? sanitizeDocumentNumber(form.documentType, form.documentNumber)
+                            : '—'
+                        }
+                      />
                       <ReviewRow label="Email" value={profile?.email || '—'} />
                       {profile?.phone ? (
                         <ReviewRow label="Mobile (optional)" value={prettyPhone(profile.phone)} />
