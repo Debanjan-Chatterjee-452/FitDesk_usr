@@ -43,7 +43,12 @@ export function SideNav() {
   const { profile } = useAuth()
   const gymQuery = useGymOverview()
   const gym = gymQuery.data
-    ? deriveGymStatus(gymQuery.data.settings, gymQuery.data.announcements)
+    ? deriveGymStatus(
+        gymQuery.data.settings,
+        gymQuery.data.announcements,
+        undefined,
+        !gymQuery.data.isOpen,
+      )
     : null
   const items: NavItem[] = profile?.is_admin
     ? [...ITEMS, { to: '/admin/approvals', label: 'Approvals', icon: ShieldCheck }]

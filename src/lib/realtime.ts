@@ -35,9 +35,21 @@ export function installMemberRealtime(
     )
     .on(
       'postgres_changes',
+      { event: '*', schema: 'public', table: 'gyms' },
+      () => {
+        // Shutter toggles live on public.gyms. RLS limits delivered events to
+        // the member's own gym, so no cross-gym filter is needed here.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.gym })
+      },
+    )
+    .on(
+      'postgres_changes',
       { event: '*', schema: 'public', table: 'announcements' },
       () => {
-        void queryClient.invalidateQueries({ queryKey: ['announcements'] })
+        // Closures are stored as announcements. Both the status card and the
+        // Activity calendar cache this data under these keys.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.gym })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.gymClosures })
       },
     )
     .on(

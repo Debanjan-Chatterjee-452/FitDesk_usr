@@ -69,5 +69,42 @@ export async function getGymOverview(): Promise<GymOverview> {
 }
 
 export function getGymStatusFromOverview(overview: GymOverview, now: Date = new Date()): GymStatusInfo {
-  return deriveGymStatus(overview.settings, overview.announcements, now)
+  return deriveGymStatus(overview.settings, overview.announcements, now, !overview.isOpen)
+}
+
+export interface GymClosure {
+  closure_date: string
+  title: string
+  reason: string | null
+  kind: 'closure' | 'holiday'
+}
+
+/** Closures published by the gym for the member Activity calendar. */
+export async function getGymClosures(from: string, to: string): Promise<GymClosure[]> {
+  if (isDemo) {
+    return loadDemoDatabase()
+      .announcements.filter(
+        (item) =>
+          item.is_active &&
+          (item.kind === 'closure' || item.kind === 'holiday') &&
+          item.starts_on >= from &&
+          item.starts_on <= to,
+      )
+      .map((item) => ({
+        closure_date: item.starts_on,
+        title: item.title,
+        reason: item.body ?? null,
+        kind: item.kind as GymClosure['kind'],
+      }))
+  }
+
+  const { data, error } = await getSupabase().rpc('member_gym_closures', {
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw toAppError(error)
+  return ((data ?? []) as GymClosure[]).map((row) => ({
+    ...row,
+    closure_date: row.closure_date.slice(0, 10),
+  }))
 }

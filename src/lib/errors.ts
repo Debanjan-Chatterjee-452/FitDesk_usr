@@ -253,6 +253,22 @@ const RPC_MESSAGES: Record<string, { code: ErrorCode; message: string }> = {
     message:
       'You own a gym, so this account cannot be deleted automatically. Transfer gym ownership to another admin first.',
   },
+  PAYMENT_METHOD_UNAVAILABLE: {
+    code: 'PAYMENT_NOT_CONFIGURED',
+    message: 'Online payment is not available for this gym yet. Please pay at the front desk.',
+  },
+  OTP_INVALID: {
+    code: 'OTP_INVALID',
+    message: 'That code is not right. Check the code from the gym and try again.',
+  },
+  OTP_EXPIRED: {
+    code: 'OTP_EXPIRED',
+    message: 'That code has expired. Ask the gym for a new one.',
+  },
+  PAYMENT_CANCELLED: {
+    code: 'PAYMENT_CANCELLED',
+    message: 'This payment was cancelled. Start the checkout again to continue.',
+  },
 }
 
 function readField(error: unknown, field: string): string | undefined {

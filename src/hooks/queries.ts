@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { checkInWithQr, computeAttendanceStats, getMyAttendance } from '@/lib/api/attendance'
-import { getGymOverview } from '@/lib/api/gym'
+import { getGymClosures, getGymOverview } from '@/lib/api/gym'
 import {
   buildMembershipSnapshot,
   getMyMembershipOverview,
@@ -39,6 +39,7 @@ export const queryKeys = {
   packages: ['packages'] as const,
   attendance: (userId: string) => ['attendance', userId] as const,
   gym: ['gym-overview'] as const,
+  gymClosures: ['gym-closures'] as const,
   payments: (userId: string) => ['payments', userId] as const,
   pendingPayment: (userId: string) => ['pending-payment', userId] as const,
   adminPayments: ['admin-pending-payments'] as const,
@@ -94,6 +95,15 @@ export function useGymOverview() {
   return useQuery({
     queryKey: queryKeys.gym,
     queryFn: getGymOverview,
+    staleTime: 60_000,
+  })
+}
+
+/** Closures/closed dates published by the gym for the Activity calendar. */
+export function useGymClosures(from: string, to: string) {
+  return useQuery({
+    queryKey: [...queryKeys.gymClosures, from, to] as const,
+    queryFn: () => getGymClosures(from, to),
     staleTime: 60_000,
   })
 }

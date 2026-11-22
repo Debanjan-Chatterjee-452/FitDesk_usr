@@ -75,7 +75,12 @@ export function HomePage() {
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? 'Athlete'
   const snapshot = membershipQuery.snapshot
   const gym = gymQuery.data
-    ? deriveGymStatus(gymQuery.data.settings, gymQuery.data.announcements, now)
+    ? deriveGymStatus(
+        gymQuery.data.settings,
+        gymQuery.data.announcements,
+        now,
+        !gymQuery.data.isOpen,
+      )
     : null
   const stats = attendanceQuery.stats
   const pendingPayment = pendingQuery.data ?? null

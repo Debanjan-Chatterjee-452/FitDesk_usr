@@ -13,6 +13,7 @@ export function deriveGymStatus(
   settings: GymSettings | null,
   announcements: Announcement[],
   now: Date = new Date(),
+  shutterClosed = false,
 ): GymStatusInfo {
   const today = todayInKolkata(now)
   const activeToday = announcements.filter(
@@ -28,6 +29,19 @@ export function deriveGymStatus(
   const hours = settings
     ? `${timeFromTimeString(settings.open_time)} – ${timeFromTimeString(settings.close_time)}`
     : 'Hours unavailable'
+
+  // The admin's manual shutter overrides published hours and announcements.
+  if (shutterClosed) {
+    return {
+      state: 'closed',
+      isOpenNow: false,
+      label: 'Closed',
+      detail: 'The gym shutter is currently down. Please check with the front desk.',
+      hours,
+      announcement: special,
+      settings,
+    }
+  }
 
   if (!settings) {
     return {

@@ -19,7 +19,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { SectionHeading } from '@/components/ui/SectionHeading'
 import { AttendanceRow } from '@/components/attendance/AttendanceRow'
-import { useAttendance, useAttendanceStats, useNow } from '@/hooks/queries'
+import { useAttendance, useAttendanceStats, useGymClosures, useNow } from '@/hooks/queries'
 import {
   calendarDaysForMonth,
   formatKolkata,
@@ -53,7 +53,15 @@ export function AttendancePage() {
   }, [records])
   const monthRecords = records.filter((record) => record.check_in_date.startsWith(month))
   const cells = calendarDaysForMonth(month)
+  const monthDays = cells.filter((date): date is string => Boolean(date))
+  const closuresQuery = useGymClosures(`${month}-01`, monthDays.at(-1) ?? `${month}-31`)
+  const closureByDate = useMemo(() => {
+    const map = new Map<string, { title: string; reason: string | null; kind: string }>()
+    for (const closure of closuresQuery.data ?? []) map.set(closure.closure_date, closure)
+    return map
+  }, [closuresQuery.data])
   const selectedRecord = selectedDate ? byDate.get(selectedDate) : null
+  const selectedClosure = selectedDate ? closureByDate.get(selectedDate) : null
 
   const goMonth = (delta: number) => {
     const next = shiftMonth(month, delta)
@@ -173,36 +181,55 @@ export function AttendancePage() {
               {cells.map((date, index) => {
                 if (!date) return <div key={`empty-${index}`} className="aspect-square" />
                 const record = byDate.get(date)
+                const closure = closureByDate.get(date)
                 const isToday = date === today
                 const isFuture = date > today
                 const isSelected = date === selectedDate
+                const closureLabel = closure?.kind === 'holiday' ? 'holiday' : 'gym closed'
                 return (
                   <button
                     key={date}
                     type="button"
-                    onClick={() => setSelectedDate(record ? (isSelected ? null : date) : null)}
-                    disabled={!record}
-                    aria-label={`${formatKolkata(date, 'd MMMM yyyy')}${record ? ', checked in' : ', no session'}`}
+                    onClick={() =>
+                      setSelectedDate(record || closure ? (isSelected ? null : date) : null)
+                    }
+                    disabled={!record && !closure}
+                    aria-label={`${formatKolkata(date, 'd MMMM yyyy')}${closure ? `, ${closureLabel}` : record ? ', checked in' : ', no session'}`}
                     aria-pressed={isSelected}
                     className={cn(
                       'relative flex aspect-square items-center justify-center rounded-xl text-[11.5px] font-semibold transition',
                       isSelected
                         ? 'bg-primary text-primary-ink shadow-[0_6px_14px_-8px_rgb(var(--primary)/0.8)]'
-                        : record
-                          ? 'bg-primary-soft/70 text-primary-strong hover:bg-primary-soft'
-                          : isFuture
-                            ? 'text-faint/60'
-                            : 'text-muted hover:bg-elevated',
+                        : closure
+                          ? 'bg-danger/10 text-danger ring-1 ring-danger/25 hover:bg-danger/15'
+                          : record
+                            ? 'bg-primary-soft/70 text-primary-strong hover:bg-primary-soft'
+                            : isFuture
+                              ? 'text-faint/60'
+                              : 'text-muted hover:bg-elevated',
                       isToday && !isSelected ? 'ring-1 ring-primary/50' : '',
                     )}
                   >
                     {Number(date.slice(8, 10))}
-                    {record && !isSelected ? (
+                    {closure && !isSelected ? (
+                      <span className="absolute bottom-1 h-1 w-1 rounded-full bg-danger" />
+                    ) : record && !isSelected ? (
                       <span className="absolute bottom-1 h-1 w-1 rounded-full bg-primary" />
                     ) : null}
                   </button>
                 )
               })}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-danger" />
+                Closed date
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                Checked in
+              </span>
             </div>
 
             <div className="mt-4 flex items-center justify-between border-t border-line/70 pt-3">
@@ -215,6 +242,16 @@ export function AttendancePage() {
                   <p className="text-[10px] text-muted">
                     {formatKolkata(selectedRecord.check_in_date, 'EEEE, d MMMM')} ·{' '}
                     {selectedRecord.source === 'qr' ? 'QR check-in' : selectedRecord.source}
+                  </p>
+                </div>
+              ) : selectedClosure ? (
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-danger">
+                    {selectedClosure.kind === 'holiday' ? 'Holiday' : 'Gym closed'} ·{' '}
+                    {selectedDate ? formatKolkata(selectedDate, 'EEEE, d MMMM') : ''}
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    {selectedClosure.reason || selectedClosure.title}
                   </p>
                 </div>
               ) : (

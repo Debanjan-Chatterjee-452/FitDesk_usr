@@ -108,4 +108,11 @@ describe('deriveGymStatus', () => {
     expect(status.isOpenNow).toBe(false)
     expect(status.detail).toBe('Gym hours have not been published yet.')
   })
+
+  it('keeps the gym closed while the admin shutter is down', () => {
+    const status = deriveGymStatus(settings, [], atIst('2026-10-27T10:00:00'), true)
+    expect(status.state).toBe('closed')
+    expect(status.isOpenNow).toBe(false)
+    expect(status.detail).toContain('shutter')
+  })
 })
