@@ -45,6 +45,7 @@ export type ErrorCode =
   | 'PROFILE_FIELD_NOT_EDITABLE'
   | 'PROFILE_SAVE_BLOCKED'
   | 'STORAGE_BLOCKED'
+  | 'ACCOUNT_OWNS_GYM'
   | 'UNKNOWN'
 
 export class AppError extends Error {
@@ -246,6 +247,11 @@ const RPC_MESSAGES: Record<string, { code: ErrorCode; message: string }> = {
   SERVER_MISCONFIGURED: {
     code: 'UNKNOWN',
     message: 'The service is not configured yet. Please contact the gym.',
+  },
+  ACCOUNT_OWNS_GYM: {
+    code: 'ACCOUNT_OWNS_GYM',
+    message:
+      'You own a gym, so this account cannot be deleted automatically. Transfer gym ownership to another admin first.',
   },
 }
 
