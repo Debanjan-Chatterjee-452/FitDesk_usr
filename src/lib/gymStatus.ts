@@ -1,14 +1,20 @@
 import type { Announcement, GymSettings, GymStatusInfo } from '@/types'
 import {
-  kolkataWeekday,
   minutesFromTimeString,
   minutesNowInKolkata,
   timeFromTimeString,
   todayInKolkata,
 } from './kolkata'
 
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
+/**
+ * The gym's live status comes only from the admin's controls:
+ *   - the shutter toggle on public.gyms (is_open), and
+ *   - published closures/holidays (announcements, including the closure
+ *     calendar).
+ *
+ * There is deliberately no weekday assumption here. A gym may be open on
+ * Sundays or run 24/7; the app never closes a day on its own.
+ */
 export function deriveGymStatus(
   settings: GymSettings | null,
   announcements: Announcement[],
@@ -68,20 +74,6 @@ export function deriveGymStatus(
     }
   }
 
-  const weekday = kolkataWeekday(now)
-  const weeklyOff = settings.closed_weekdays.includes(weekday)
-  if (weeklyOff) {
-    return {
-      state: 'closed',
-      isOpenNow: false,
-      label: 'Closed today',
-      detail: `${WEEKDAY_NAMES[weekday]} is the weekly off. ${nextOpeningLabel(settings, now)}`,
-      hours,
-      announcement: null,
-      settings,
-    }
-  }
-
   const openMinutes = minutesFromTimeString(settings.open_time)
   const closeMinutes = minutesFromTimeString(settings.close_time)
   const nowMinutes = minutesNowInKolkata(now)
@@ -114,22 +106,11 @@ export function deriveGymStatus(
 }
 
 function nextOpeningLabel(settings: GymSettings, now: Date): string {
-  const today = todayInKolkata(now)
   const nowMinutes = minutesNowInKolkata(now)
   const openMinutes = minutesFromTimeString(settings.open_time)
-  const weekday = kolkataWeekday(now)
 
-  if (!settings.closed_weekdays.includes(weekday) && nowMinutes < openMinutes) {
+  if (nowMinutes < openMinutes) {
     return `Opens today at ${timeFromTimeString(settings.open_time)}`
   }
-
-  const parsed = new Date(`${today}T12:00:00+05:30`)
-  for (let offset = 1; offset <= 7; offset += 1) {
-    const next = new Date(parsed.getTime() + offset * 86_400_000)
-    const nextWeekday = kolkataWeekday(next)
-    if (settings.closed_weekdays.includes(nextWeekday)) continue
-    if (offset === 1) return `Opens tomorrow at ${timeFromTimeString(settings.open_time)}`
-    return `Opens ${WEEKDAY_NAMES[nextWeekday]} at ${timeFromTimeString(settings.open_time)}`
-  }
-  return 'Check back soon'
+  return `Opens tomorrow at ${timeFromTimeString(settings.open_time)}`
 }

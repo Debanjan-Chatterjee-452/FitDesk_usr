@@ -27,6 +27,8 @@ import { SectionHeading } from '@/components/ui/SectionHeading'
 import { PackageCard } from '@/components/membership/PackageCard'
 import { RenewalSheet } from '@/components/membership/RenewalSheet'
 import { ExpiryWarningBanner } from '@/components/membership/ExpiryWarningBanner'
+import { CashPendingCard } from '@/components/membership/CashPendingCard'
+import { ReceiptSheet } from '@/components/membership/ReceiptSheet'
 import {
   useGymOverview,
   useMembershipSnapshot,
@@ -35,6 +37,7 @@ import {
   usePayments,
   usePendingPayment,
 } from '@/hooks/queries'
+import { useAuth } from '@/context/AuthProvider'
 import { formatKolkata } from '@/lib/kolkata'
 import {
   FINE_DAILY_AMOUNT,
@@ -42,8 +45,6 @@ import {
   FINE_GRACE_DAYS,
   FINE_START_DAY,
 } from '@/lib/lateFee'
-import { verifyCashOtp } from '@/lib/api/cashOtp'
-import { toAppError } from '@/lib/errors'
 import { cn, formatDuration, formatINR } from '@/lib/utils'
 
 const PAYMENT_TONES = {
@@ -89,6 +90,7 @@ function paymentDisplay(payment: Payment): PaymentTone {
 
 export function MembershipPage() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const membershipQuery = useMembershipSnapshot()
   const packagesQuery = usePackages()
   const overviewQuery = useGymOverview()
@@ -98,8 +100,7 @@ export function MembershipPage() {
   const [selectedPackage, setSelectedPackage] = useState<GymPackage | null>(null)
   const [renewalOpen, setRenewalOpen] = useState(false)
   const [verification, setVerification] = useState<PaymentVerification | null>(null)
-  const [otpValue, setOtpValue] = useState('')
-  const [verifyingOtp, setVerifyingOtp] = useState(false)
+  const [receiptId, setReceiptId] = useState<string | null>(null)
 
   const snapshot = membershipQuery.snapshot
   const membership = snapshot.membership
@@ -117,35 +118,24 @@ export function MembershipPage() {
   const declinedPayment =
     !pendingPayment && latestPayment?.status === 'declined' ? latestPayment : null
 
-  const handleVerifyOtp = async () => {
-    if (!pendingPayment) return
-    const value = otpValue.trim()
-    if (!/^\d{5}$/.test(value)) {
-      toast.error('Enter the 5-digit OTP from the front desk.')
-      return
-    }
-    setVerifyingOtp(true)
-    try {
-      const result = await verifyCashOtp(pendingPayment.id, value)
-      setOtpValue('')
-      toast.success('Cash payment verified', {
-        description: `${result.package_name} is now active until ${formatKolkata(result.ends_on ?? '', 'd MMM yyyy')}.`,
-      })
-      void membershipQuery.refetch()
-      void paymentsQuery.refetch()
-      void pendingQuery.refetch()
-    } catch (error) {
-      toast.error(toAppError(error).message)
-    } finally {
-      setVerifyingOtp(false)
-    }
-  }
+  const cashPending =
+    pendingPayment &&
+    pendingPayment.provider === 'cash' &&
+    pendingPayment.status === 'pending' &&
+    pendingPayment.checkout_state !== 'submitted' &&
+    !reconciliationPayment
+      ? pendingPayment
+      : null
+
+  const receiptPayment = receiptId
+    ? (paymentsQuery.data ?? []).find((item) => item.id === receiptId) ?? null
+    : null
 
   const openRenewal = (pkg: GymPackage) => {
     if (pendingPayment) {
-      toast.info('Payment awaiting verification', {
+      toast.info('Payment awaiting confirmation', {
         description:
-          'The gym is still verifying your last payment. Wait for that decision before starting another renewal.',
+          'The gym is still confirming your last payment. Wait for that decision before starting another renewal.',
       })
       return
     }
@@ -169,33 +159,17 @@ export function MembershipPage() {
         <PaymentStatusBanner kind="declined" payment={declinedPayment} />
       ) : null}
 
-      {pendingPayment ? (
-        <section className="mt-3 rounded-2xl border border-line/80 bg-surface p-4">
-          <p className="text-[12px] font-semibold text-ink">Have a cash OTP?</p>
-          <p className="mt-0.5 text-[10.5px] text-muted">
-            Enter the 5-digit code the front desk gave you to verify a cash payment.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={5}
-              value={otpValue}
-              onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 5))}
-              placeholder="12345"
-              className="h-11 flex-1 rounded-xl border border-line bg-elevated px-3 text-center font-mono text-[16px] tracking-[0.3em] text-ink outline-none focus:border-primary"
-            />
-            <Button
-              variant="primary"
-              size="md"
-              loading={verifyingOtp}
-              disabled={otpValue.length !== 5}
-              onClick={() => void handleVerifyOtp()}
-            >
-              Verify
-            </Button>
-          </div>
-        </section>
+      {cashPending ? (
+        <CashPendingCard
+          payment={cashPending}
+          onVerified={(result) => {
+            setVerification(result)
+            setReceiptId(result.payment_id)
+            void membershipQuery.refetch()
+            void paymentsQuery.refetch()
+            void pendingQuery.refetch()
+          }}
+        />
       ) : null}
 
       <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(290px,1fr)] lg:items-start lg:gap-6">
@@ -394,6 +368,7 @@ export function MembershipPage() {
               loading={paymentsQuery.isLoading}
               error={paymentsQuery.isError ? 'Could not load payment history.' : null}
               onRetry={() => void paymentsQuery.refetch()}
+              onViewReceipt={setReceiptId}
             />
           </section>
         </div>
@@ -441,10 +416,9 @@ export function MembershipPage() {
               <p className="text-[11.5px] font-semibold">Payments are verified, then approved</p>
             </div>
             <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted">
-              You pay the gym directly from any UPI app. The gym then matches your reference
-              against their bank statement before approving it. Your plan starts, expiry extends,
-              and fines clear only after that verification. Cancelling a payment never creates a
-              membership.
+              Pay the gym with your UPI app and tap "I Have Paid", or pay cash at the desk with a
+              6-digit code. The gym confirms every payment before your plan starts, expiry extends,
+              and fines clear. Cancelling a payment never creates a membership.
             </p>
           </div>
 
@@ -469,8 +443,10 @@ export function MembershipPage() {
         onSuccess={(result) => {
           setRenewalOpen(false)
           setVerification(result)
+          setReceiptId(result.payment_id)
           void membershipQuery.refetch()
           void paymentsQuery.refetch()
+          void pendingQuery.refetch()
         }}
       />
 
@@ -481,6 +457,20 @@ export function MembershipPage() {
           setVerification(null)
           window.scrollTo({ top: 0, behavior: 'smooth' })
         }}
+        onViewReceipt={() => {
+          if (verification) setReceiptId(verification.payment_id)
+          setVerification(null)
+        }}
+      />
+
+      <ReceiptSheet
+        open={Boolean(receiptPayment)}
+        onOpenChange={(open) => {
+          if (!open) setReceiptId(null)
+        }}
+        payment={receiptPayment}
+        memberName={profile?.full_name}
+        gymName={overviewQuery.data?.gymName}
       />
     </div>
   )
@@ -518,11 +508,13 @@ function PaymentHistory({
   loading,
   error,
   onRetry,
+  onViewReceipt,
 }: {
   payments: Payment[]
   loading: boolean
   error: string | null
   onRetry: () => void
+  onViewReceipt: (id: string) => void
 }) {
   if (loading) {
     return (
@@ -596,6 +588,16 @@ function PaymentHistory({
               ) : payment.status === 'declined' ? (
                 <p className="text-[9px] text-danger">contact the gym</p>
               ) : null}
+              {payment.status === 'approved' ? (
+                <button
+                  type="button"
+                  onClick={() => onViewReceipt(payment.id)}
+                  className="mt-1 inline-flex items-center gap-1 text-[9.5px] font-semibold text-primary-strong hover:underline"
+                >
+                  <ReceiptText className="h-3 w-3" />
+                  Receipt
+                </button>
+              ) : null}
             </div>
           </div>
         )
@@ -635,12 +637,14 @@ function PaymentStatusBanner({
       <div className="mt-4 flex items-start gap-3 rounded-2xl border border-warning/25 bg-warning/[0.06] p-3.5">
         <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <div>
-          <p className="text-[12px] font-semibold text-ink">Payment pending verification</p>
+          <p className="text-[12px] font-semibold text-ink">
+            Payment Submitted — Waiting for Gym Confirmation
+          </p>
           <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
-            Your {formatINR(payment.total_amount_inr)} payment reference for the {packageName} plan
-            is waiting for the gym. Your current plan, expiry date, and any fines stay unchanged
-            until it is verified, so keep using your existing access. New renewals are locked
-            while this review is open.
+            Your {formatINR(payment.total_amount_inr)} payment for the {packageName} plan is with
+            the gym. Your current plan, expiry date, and any fines stay unchanged until it is
+            confirmed, so keep using your existing access. New renewals are locked while this
+            review is open.
           </p>
         </div>
       </div>
@@ -715,12 +719,15 @@ function SuccessSheet({
   verification,
   onClose,
   onViewPlan,
+  onViewReceipt,
 }: {
   verification: PaymentVerification | null
   onClose: () => void
   onViewPlan: () => void
+  onViewReceipt: () => void
 }) {
-  const approved = verification?.status === 'already_approved'
+  const approved =
+    verification?.status === 'already_approved' || verification?.status === 'approved'
   const alreadyPending = verification?.status === 'already_pending'
   const reconciliation = verification?.status === 'reconciliation_required'
   const packageName = verification?.package_name ?? 'membership'
@@ -771,29 +778,29 @@ function SuccessSheet({
         </div>
         <h2 className="display-accent text-[23px] text-ink">
           {approved
-            ? 'Payment verified.'
+            ? 'Payment confirmed.'
             : reconciliation
-              ? 'Payment needs reconciliation.'
+              ? 'Payment needs the front desk.'
               : alreadyPending
-                ? 'Already awaiting verification.'
-                : 'Reference submitted.'}
+                ? 'Already awaiting confirmation.'
+                : 'Payment Submitted — Waiting for Gym Confirmation'}
         </h2>
         <p className="mt-1.5 max-w-[34ch] text-[12px] leading-relaxed text-muted">
           {approved ? (
             <>
               Your {packageName} plan is active until {endsOn}. Any remaining days on your
-              previous plan were preserved.
+              previous plan were preserved. Your receipt is available in payment history.
             </>
           ) : reconciliation ? (
             <>
               A payment for your {packageName} renewal may have been sent, but it could not be
-              recorded automatically. The gym will check it against their bank statement before
-              approving or declining. Your expiry date and any fines stay unchanged.
+              recorded automatically. The gym will check it before approving or declining. Your
+              expiry date and any fines stay unchanged.
             </>
           ) : (
             <>
-              Your reference for the {packageName} payment was recorded and is waiting for the gym
-              to verify it. Your expiry date and any fines stay unchanged until it is approved.
+              Your {packageName} payment is with the gym. Your plan starts as soon as they confirm
+              it. Your expiry date and any fines stay unchanged until then.
             </>
           )}
         </p>
@@ -829,13 +836,21 @@ function SuccessSheet({
           </div>
         </div>
 
-        <div className="mt-5 grid w-full grid-cols-2 gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            Done
-          </Button>
-          <Button onClick={onViewPlan} trailingIcon={<ArrowRight className="h-3.5 w-3.5" />}>
-            View plan
-          </Button>
+        <div className="mt-5 grid w-full gap-2">
+          <div className="grid w-full grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Done
+            </Button>
+            <Button onClick={onViewPlan} trailingIcon={<ArrowRight className="h-3.5 w-3.5" />}>
+              View plan
+            </Button>
+          </div>
+          {approved ? (
+            <Button variant="ghost" onClick={onViewReceipt}>
+              <ReceiptText className="h-3.5 w-3.5" />
+              View receipt
+            </Button>
+          ) : null}
         </div>
       </div>
     </Sheet>

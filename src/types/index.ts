@@ -225,6 +225,7 @@ export interface PaymentVerification {
     | 'pending_approval'
     | 'already_pending'
     | 'already_approved'
+    | 'approved'
     | 'reconciliation_required'
   payment_id: string
   membership_id: string | null
@@ -245,9 +246,52 @@ export interface UpiCheckoutReservation {
   package_name?: string
   amount_inr?: number
   gym_id?: string
+  payment_method?: string
   upi_reference?: string | null
   reconciliation_reason?: string | null
   created_at?: string
+}
+
+/** Member-facing cash request state, derived from the payment row. */
+export type CashPaymentState =
+  | 'AWAITING_CASH'
+  | 'VERIFIED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'RECONCILIATION'
+
+/** A cash payment request plus the live one-time code window. */
+export interface CashPaymentInfo {
+  payment_id: string
+  payment_state: CashPaymentState
+  status: PaymentStatus
+  checkout_state: CheckoutState
+  payment_method: string
+  amount_inr: number
+  package_name: string
+  duration_days: number
+  gym_name: string | null
+  requested_at: string
+  /** When the code the gym is holding stops working. Never the code itself. */
+  otp_expires_at: string | null
+  has_live_otp: boolean
+  /** Earliest moment a new code can be requested. */
+  can_rerequest_at: string | null
+  starts_on: string | null
+  ends_on: string | null
+}
+
+/** Result of requesting a cash payment. The code itself is shown to the gym. */
+export interface CashPaymentRequestResult {
+  status: 'otp_issued' | 'already_pending' | 'reconciliation_required'
+  payment_id: string
+  amount_inr?: number
+  package_name?: string
+  duration_days?: number
+  gym_name?: string | null
+  expires_at?: string | null
+  reused?: boolean
+  reason?: string | null
 }
 
 /** Everything the payment screen is allowed to render, for one payment. */

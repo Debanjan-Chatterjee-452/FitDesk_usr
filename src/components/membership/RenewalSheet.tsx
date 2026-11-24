@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   ArrowRight,
+  Banknote,
   CheckCircle2,
   Clock3,
   CreditCard,
-  LockKeyhole,
   Minus,
   Plus,
   ShieldCheck,
+  Smartphone,
   TriangleAlert,
 } from 'lucide-react'
 import type {
@@ -20,8 +21,13 @@ import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { CashPaymentPanel } from '@/components/membership/CashPaymentPanel'
 import { UpiPaymentPanel } from '@/components/membership/UpiPaymentPanel'
-import { useRenewalQuote, useReserveUpiCheckout } from '@/hooks/queries'
+import {
+  useRenewalQuote,
+  useRequestCashPayment,
+  useReserveUpiCheckout,
+} from '@/hooks/queries'
 import { toAppError } from '@/lib/errors'
 import { formatKolkata } from '@/lib/kolkata'
 import { FINE_DAILY_AMOUNT, FINE_FLAT_AMOUNT, FINE_GRACE_DAYS, FINE_START_DAY } from '@/lib/lateFee'
@@ -35,13 +41,14 @@ interface RenewalSheetProps {
 }
 
 /**
- * `review`    – the quote, the duration picker, the total.
+ * `review`    – the quote, the duration picker, the total, the payment choice.
  * `pay`       – the direct-UPI instructions for a reserved payment row.
+ * `cash`      – the cash request and 6-digit code entry.
  * `conflict`  – a payment already exists whose amount differs from what was
  *               reviewed. Nothing is paid until the member chooses.
  * `reconcile` – an earlier payment needs a human at the desk first.
  */
-type Stage = 'review' | 'pay' | 'conflict' | 'reconcile'
+type Stage = 'review' | 'pay' | 'cash' | 'conflict' | 'reconcile'
 
 export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalSheetProps) {
   const isPerDay = pkg?.pricing_mode === 'per_day'
@@ -52,6 +59,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
   const [error, setError] = useState<string | null>(null)
   const [reservation, setReservation] = useState<UpiCheckoutReservation | null>(null)
   const [payAmount, setPayAmount] = useState<number | null>(null)
+  const [cashPaymentId, setCashPaymentId] = useState<string | null>(null)
   const [isNewAdmission, setIsNewAdmission] = useState(false)
 
   const quoteQuery = useRenewalQuote(
@@ -60,9 +68,10 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
     isNewAdmission,
   )
   const reserveCheckout = useReserveUpiCheckout()
+  const requestCash = useRequestCashPayment()
 
   const quote = quoteQuery.data
-  const busy = reserveCheckout.isPending
+  const busy = reserveCheckout.isPending || requestCash.isPending
 
   useEffect(() => {
     if (!open) return
@@ -70,6 +79,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
     setError(null)
     setReservation(null)
     setPayAmount(null)
+    setCashPaymentId(null)
     setIsNewAdmission(false)
     if (pkg?.pricing_mode === 'per_day') {
       setDuration(clamp(30, pkg.min_days ?? 7, pkg.max_days ?? 180))
@@ -89,6 +99,7 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
       setError(null)
       setReservation(null)
       setPayAmount(null)
+      setCashPaymentId(null)
     }
     onOpenChange(next)
   }
@@ -138,6 +149,34 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
     }
   }
 
+  const handleCash = async () => {
+    if (!pkg) return
+    setError(null)
+    try {
+      const result = await requestCash.mutateAsync({
+        packageId: pkg.id,
+        durationDays: isPerDay ? duration : null,
+        isNewAdmission,
+      })
+
+      if (result.status === 'reconciliation_required') {
+        setReservation({
+          status: 'reconciliation_required',
+          payment_id: result.payment_id,
+          quote: null,
+          reconciliation_reason: result.reason ?? null,
+        })
+        setStage('reconcile')
+        return
+      }
+
+      setCashPaymentId(result.payment_id)
+      setStage('cash')
+    } catch (cashError) {
+      setError(toAppError(cashError).message)
+    }
+  }
+
   const fineTone = quote && quote.fine_amount > 0 ? 'warning' : 'success'
 
   const stepChips = useMemo(() => {
@@ -147,26 +186,31 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
 
   const reviewing = stage === 'review'
   const paying = stage === 'pay' && reservation && payAmount !== null
+  const payingCash = stage === 'cash' && cashPaymentId !== null
 
   const title =
     stage === 'pay'
-      ? 'Pay by UPI'
-      : stage === 'conflict'
-        ? 'Payment already in progress'
-        : stage === 'reconcile'
-          ? 'Payment needs the front desk'
-          : 'Renew membership'
+      ? 'Pay via app'
+      : stage === 'cash'
+        ? 'Pay by cash'
+        : stage === 'conflict'
+          ? 'Payment already in progress'
+          : stage === 'reconcile'
+            ? 'Payment needs the front desk'
+            : 'Renew membership'
 
   const description =
     stage === 'pay'
-      ? 'Pay the gym directly with any UPI app, then submit the reference.'
-      : stage === 'conflict'
-        ? 'An earlier reservation for this account has a different amount.'
-        : stage === 'reconcile'
-          ? 'This renewal cannot continue online yet.'
-          : pkg
-            ? `${pkg.name} plan · select your details below`
-            : undefined
+      ? 'Pay the gym directly with any UPI app, then tap "I Have Paid".'
+      : stage === 'cash'
+        ? 'Hand the cash to the front desk and enter the 6-digit code they give you.'
+        : stage === 'conflict'
+          ? 'An earlier reservation for this account has a different amount.'
+          : stage === 'reconcile'
+            ? 'This renewal cannot continue online yet.'
+            : pkg
+              ? `${pkg.name} plan · select your details below`
+              : undefined
 
   return (
     <Sheet
@@ -192,20 +236,50 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
                 {formatINR(quote.total_amount)}
               </p>
             </div>
-            <Button
-              type="button"
-              size="lg"
-              fullWidth
-              onClick={() => void handlePay()}
-              loading={busy}
-              leadingIcon={<LockKeyhole className="h-4 w-4" />}
-              trailingIcon={!busy ? <ArrowRight className="h-4 w-4" /> : undefined}
-            >
-              {busy ? 'Preparing payment…' : `Pay ${formatINR(quote.total_amount)}`}
-            </Button>
+
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+              How would you like to pay?
+            </p>
+
+            <div className="grid gap-2">
+              <Button
+                type="button"
+                size="lg"
+                fullWidth
+                onClick={() => void handlePay()}
+                loading={reserveCheckout.isPending}
+                disabled={requestCash.isPending}
+                leadingIcon={
+                  !reserveCheckout.isPending ? <Smartphone className="h-4 w-4" /> : undefined
+                }
+                trailingIcon={
+                  !reserveCheckout.isPending ? <ArrowRight className="h-4 w-4" /> : undefined
+                }
+              >
+                {reserveCheckout.isPending
+                  ? 'Preparing payment…'
+                  : 'Pay via App (UPI / QR)'}
+              </Button>
+
+              <Button
+                type="button"
+                size="lg"
+                variant="secondary"
+                fullWidth
+                onClick={() => void handleCash()}
+                loading={requestCash.isPending}
+                disabled={reserveCheckout.isPending}
+                leadingIcon={
+                  !requestCash.isPending ? <Banknote className="h-4 w-4" /> : undefined
+                }
+              >
+                {requestCash.isPending ? 'Requesting cash…' : 'Pay by Cash (Manual Cash Payment)'}
+              </Button>
+            </div>
+
             <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[9.5px] text-faint">
               <ShieldCheck className="h-3 w-3" />
-              Your plan activates only after the gym verifies the payment.
+              Choose one. Your plan activates only after the gym confirms the payment.
             </p>
           </div>
         ) : undefined
@@ -222,6 +296,20 @@ export function RenewalSheet({ open, onOpenChange, pkg, onSuccess }: RenewalShee
             setStage('review')
             setReservation(null)
             setPayAmount(null)
+          }}
+        />
+      ) : payingCash && pkg ? (
+        <CashPaymentPanel
+          paymentId={cashPaymentId}
+          packageId={pkg.id}
+          durationDays={isPerDay ? duration : null}
+          isNewAdmission={isNewAdmission}
+          onVerified={(verification) => {
+            onSuccess(verification)
+          }}
+          onBack={() => {
+            setStage('review')
+            setCashPaymentId(null)
           }}
         />
       ) : stage === 'conflict' && reservation && payAmount !== null && quote ? (

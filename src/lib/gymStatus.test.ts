@@ -9,7 +9,7 @@ const settings: GymSettings = {
   address: '12, 100 Feet Road, Indiranagar, Bengaluru 560038',
   open_time: '05:00',
   close_time: '23:00',
-  closed_weekdays: [0],
+  closed_weekdays: [],
   contact_phone: '+91 90000 00000',
   updated_at: '2026-10-01T00:00:00.000Z',
 }
@@ -54,11 +54,11 @@ describe('deriveGymStatus', () => {
     expect(status.detail).toBe('Opens tomorrow at 5:00 AM')
   })
 
-  it('respects the weekly off day in IST', () => {
+  it('stays open on Sunday unless the admin publishes a closure', () => {
     const status = deriveGymStatus(settings, [], atIst('2026-10-25T10:00:00'))
-    expect(status.state).toBe('closed')
-    expect(status.detail).toContain('Sunday is the weekly off')
-    expect(status.detail).toContain('Opens tomorrow at 5:00 AM')
+    expect(status.state).toBe('open')
+    expect(status.isOpenNow).toBe(true)
+    expect(status.detail).not.toContain('weekly off')
   })
 
   it('lets an active closure announcement win over opening hours', () => {

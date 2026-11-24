@@ -23,7 +23,9 @@ export function installMemberRealtime(
       () => {
         void queryClient.invalidateQueries({ queryKey: queryKeys.payments(userId) })
         void queryClient.invalidateQueries({ queryKey: queryKeys.pendingPayment(userId) })
-        void queryClient.invalidateQueries({ queryKey: queryKeys.upiPayment(null) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.membership(userId) })
+        void queryClient.invalidateQueries({ queryKey: ['upi-payment'] })
+        void queryClient.invalidateQueries({ queryKey: ['cash-payment'] })
       },
     )
     .on(

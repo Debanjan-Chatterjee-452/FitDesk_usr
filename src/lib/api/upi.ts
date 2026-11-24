@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Payment,
   PaymentVerification,
   RenewalQuote,
@@ -289,7 +289,7 @@ export async function submitUpiReference(
   if (!isValidUpiReference(normalized)) {
     throw new AppError(
       'INVALID_UPI_REFERENCE',
-      'Enter the 12-digit UPI reference (UTR) from your payment app. It is 6–40 letters or digits.',
+      'Enter the 12-digit UPI reference (UTR) from your payment app. It is 6â€“40 letters or digits.',
     )
   }
 
@@ -366,6 +366,78 @@ export async function submitUpiReference(
     const { data, error } = await getSupabase().rpc('submit_upi_payment_reference', {
       p_payment_id: paymentId,
       p_reference: normalized,
+    })
+    if (error) throw error
+    if (!data) throw new Error('PAYMENT_FAILED')
+    return data as PaymentVerification
+  } catch (error) {
+    throw toAppError(error)
+  }
+}
+
+/**
+ * One-tap "I Have Paid".
+ *
+ * The member has already paid the gym from their own UPI app; this records the
+ * claim so the gym can match it against its statement. No UTR is typed and
+ * nothing is activated until the gym approves.
+ */
+export async function markPaymentPaid(paymentId: string): Promise<PaymentVerification> {
+  if (isDemo) {
+    const userId = await requireUserId()
+    const db = loadDemoDatabase()
+    const user = db.users.find((item) => item.id === userId)
+    if (!user) throw new AppError('AUTH_REQUIRED', 'Please sign in again.')
+
+    const payment = user.payments.find((item) => item.id === paymentId)
+    if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'We could not find that payment.')
+
+    if (payment.status === 'approved') {
+      return {
+        status: 'already_approved',
+        payment_id: payment.id,
+        membership_id: payment.membership_id,
+        starts_on: payment.quote?.starts_on ?? null,
+        ends_on: payment.quote?.ends_on ?? null,
+        package_name: payment.package?.name ?? 'Membership',
+        total_amount_inr: payment.total_amount_inr,
+      }
+    }
+    if (payment.status === 'declined') {
+      throw new AppError('PAYMENT_DECLINED', 'This payment was declined by the gym.')
+    }
+    if (payment.checkout_state === 'submitted') {
+      return {
+        status: 'already_pending',
+        payment_id: payment.id,
+        membership_id: null,
+        starts_on: payment.quote?.starts_on ?? null,
+        ends_on: payment.quote?.ends_on ?? null,
+        package_name: payment.package?.name ?? 'Membership',
+        total_amount_inr: payment.total_amount_inr,
+      }
+    }
+
+    const now = new Date().toISOString()
+    payment.checkout_state = 'submitted'
+    payment.upi_submitted_at = now
+    payment.updated_at = now
+    saveDemoDatabase(db)
+
+    return {
+      status: 'pending_approval',
+      payment_id: payment.id,
+      membership_id: null,
+      starts_on: payment.quote?.starts_on ?? null,
+      ends_on: payment.quote?.ends_on ?? null,
+      package_name: payment.package?.name ?? 'Membership',
+      total_amount_inr: payment.total_amount_inr,
+    }
+  }
+
+  try {
+    const { data, error } = await getSupabase().rpc('member_mark_payment_paid', {
+      p_payment_id: paymentId,
     })
     if (error) throw error
     if (!data) throw new Error('PAYMENT_FAILED')

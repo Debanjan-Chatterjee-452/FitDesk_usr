@@ -143,7 +143,7 @@ function buildSettings(): GymSettings {
     address: '12, 100 Feet Road, Indiranagar, Bengaluru 560038',
     open_time: '05:00',
     close_time: '23:00',
-    closed_weekdays: [0],
+    closed_weekdays: [],
     contact_phone: '+91 90000 00000',
     updated_at: nowIso(),
   }
@@ -179,8 +179,8 @@ function buildAnnouncements(): Announcement[] {
     },
     {
       id: 'a2222222-2222-4222-8222-222222222222',
-      title: 'Sunday deep-clean closure',
-      body: 'The gym stays closed on Sundays for maintenance and deep cleaning.',
+      title: 'Deep-clean closure',
+      body: 'The gym will be closed for maintenance and deep cleaning. Ask the front desk if you need details.',
       kind: 'closure',
       starts_on: addDaysToDate(today, 5),
       ends_on: addDaysToDate(today, 5),

@@ -34,6 +34,7 @@ export type ErrorCode =
   | 'PAYMENT_QUOTE_MISSING'
   | 'PAYMENT_RECONCILIATION_REQUIRED'
   | 'PAYMENT_RECONCILIATION_FAILED'
+  | 'CASH_PAYMENT_REQUIRES_OTP'
   | 'ADMIN_REQUIRED'
   | 'SELF_REVIEW_FORBIDDEN'
   | 'INVALID_REVIEW_DECISION'
@@ -256,6 +257,11 @@ const RPC_MESSAGES: Record<string, { code: ErrorCode; message: string }> = {
   PAYMENT_METHOD_UNAVAILABLE: {
     code: 'PAYMENT_NOT_CONFIGURED',
     message: 'Online payment is not available for this gym yet. Please pay at the front desk.',
+  },
+  CASH_PAYMENT_REQUIRES_OTP: {
+    code: 'CASH_PAYMENT_REQUIRES_OTP',
+    message:
+      'This is a cash payment. Ask the front desk for your 6-digit code and enter it to finish.',
   },
   OTP_INVALID: {
     code: 'OTP_INVALID',

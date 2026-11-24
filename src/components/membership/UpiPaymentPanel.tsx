@@ -19,18 +19,13 @@ import { toast } from 'sonner'
 import type { PaymentVerification } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useSubmitUpiReference, useUpiPaymentInstructions } from '@/hooks/queries'
+import { useMarkPaymentPaid, useUpiPaymentInstructions } from '@/hooks/queries'
 import { toAppError } from '@/lib/errors'
 import { formatKolkata } from '@/lib/kolkata'
 import { copyText } from '@/lib/upi/clipboard'
 import { UpiQrCode } from '@/components/membership/UpiQrCode'
-import {
-  buildUpiUri,
-  isValidUpiReference,
-  normalizeUpiReference,
-} from '@/lib/upi/upi'
+import { buildUpiUri } from '@/lib/upi/upi'
 import { cn, formatDuration, formatINR } from '@/lib/utils'
 
 interface UpiPaymentPanelProps {
@@ -49,6 +44,9 @@ type CopyTarget = 'upi' | 'amount' | null
  * Everything rendered here comes from `get_my_upi_payment`, which is scoped to
  * the signed-in member's own payment. The amount, the recipient and the gym are
  * never taken from the browser.
+ *
+ * There is no UTR box: the member pays from their own UPI app and taps one
+ * button, "I Have Paid". The gym then matches the transfer and approves it.
  */
 export function UpiPaymentPanel({
   paymentId,
@@ -57,8 +55,7 @@ export function UpiPaymentPanel({
   onBack,
 }: UpiPaymentPanelProps) {
   const instructionsQuery = useUpiPaymentInstructions(paymentId)
-  const submitReference = useSubmitUpiReference()
-  const [reference, setReference] = useState('')
+  const markPaid = useMarkPaymentPaid()
   const [formError, setFormError] = useState<string | null>(null)
   const [launchHint, setLaunchHint] = useState(false)
   const [copied, setCopied] = useState<CopyTarget>(null)
@@ -86,18 +83,12 @@ export function UpiPaymentPanel({
     toast.success(target === 'upi' ? 'UPI ID copied' : 'Amount copied')
   }
 
-  const handleSubmitReference = async () => {
-    const normalized = normalizeUpiReference(reference)
-    if (!isValidUpiReference(normalized)) {
-      setFormError('Enter the UPI reference (UTR) from your payment app — 6 to 40 letters or digits.')
-      return
-    }
+  const handleMarkPaid = async () => {
     setFormError(null)
     try {
-      const verification = await submitReference.mutateAsync({ paymentId, reference: normalized })
-      toast.success('Payment submitted for verification', {
-        description:
-          'The gym will match your reference against their bank statement before activating the plan.',
+      const verification = await markPaid.mutateAsync(paymentId)
+      toast.success('Payment submitted', {
+        description: 'Waiting for the gym to confirm it.',
       })
       onSubmitted(verification)
     } catch (error) {
@@ -178,19 +169,23 @@ export function UpiPaymentPanel({
         <StateCard
           tone="warning"
           icon={<Clock3 className="h-4 w-4" />}
-          title="Waiting for the gym to verify this payment"
-          body={`We recorded your reference for the ${data.package_name} plan (${formatINR(
-            data.amount_inr,
-          )}). Your membership activates only after the gym matches it with their bank statement. Your current plan and expiry do not change until then.`}
+          title="Payment Submitted — Waiting for Gym Confirmation"
+          body={`We told the gym you paid ${formatINR(data.amount_inr)} for the ${data.package_name} plan. Your membership activates as soon as they confirm the transfer. Your current plan and expiry stay unchanged until then.`}
         >
           <DetailRow label="Gym" value={data.gym_name} />
-          <DetailRow label="Reference" value={data.upi_reference ?? '—'} mono />
-          <DetailRow label="Submitted" value={formatKolkata(data.submitted_at, 'd MMM yyyy, h:mm a')} />
-          <DetailRow label="Status" value="Pending verification" />
+          <DetailRow
+            label="Submitted"
+            value={
+              data.submitted_at
+                ? formatKolkata(data.submitted_at, 'd MMM yyyy, h:mm a')
+                : 'Just now'
+            }
+          />
+          <DetailRow label="Status" value="Waiting for the gym" />
         </StateCard>
         <p className="text-[10.5px] leading-relaxed text-muted">
-          Keep your UPI app receipt until the gym approves the payment. If the gym cannot find the
-          transfer, they will contact you using the details on your account.
+          Keep your UPI app receipt until the gym confirms the payment. This screen updates by
+          itself once they approve it.
         </p>
         <Button variant="secondary" fullWidth onClick={onBack}>
           Back to plans
@@ -205,8 +200,8 @@ export function UpiPaymentPanel({
         <StateCard
           tone="success"
           icon={<BadgeCheck className="h-4 w-4" />}
-          title="Payment verified"
-          body={`The gym verified your ${formatINR(data.amount_inr)} payment. Your ${data.package_name} plan is active.`}
+          title="Payment confirmed"
+          body={`The gym confirmed your ${formatINR(data.amount_inr)} payment. Your ${data.package_name} plan is active.`}
         >
           <DetailRow label="Gym" value={data.gym_name} />
           <DetailRow
@@ -217,6 +212,7 @@ export function UpiPaymentPanel({
                 : 'Confirmed by the gym'
             }
           />
+          <DetailRow label="Receipt" value="View only · in payment history" />
         </StateCard>
         <Button fullWidth onClick={onBack}>
           Done
@@ -234,7 +230,7 @@ export function UpiPaymentPanel({
           title={data.payment_state === 'FAILED' ? 'This payment was declined' : 'This checkout was cancelled'}
           body={
             data.payment_state === 'FAILED'
-              ? 'The gym could not verify this payment. Nothing was activated. If money left your account, contact the front desk with your UPI reference for a manual refund.'
+              ? 'The gym could not confirm this payment. Nothing was activated. If money left your account, show your UPI app receipt at the front desk for a manual refund.'
               : 'No payment was completed and no membership change was made. You can start a new renewal.'
           }
         />
@@ -251,12 +247,12 @@ export function UpiPaymentPanel({
         <StateCard
           tone="warning"
           icon={<AlertCircle className="h-4 w-4" />}
-          title="Payment is not available for this gym yet."
+          title="Pay by app is not available for this gym yet."
           body={
             data.payee.reason === 'AMOUNT_INVALID'
-              ? 'The amount on this renewal could not be confirmed, so online payment is disabled. Please renew at the front desk.'
+              ? 'The amount on this renewal could not be confirmed, so app payment is disabled. Please renew at the front desk.'
               : data.payee.reason === 'INVALID_UPI_ID'
-                ? 'This gym has not finished configuring its UPI payment details. Please pay at the front desk until the gym completes the setup.'
+                ? 'This gym has not finished setting up its UPI payment details. Please pay at the front desk until the gym completes the setup.'
                 : 'The gym owner has not added a UPI ID and QR code yet. Please pay at the front desk — nothing has been charged.'
           }
         />
@@ -386,7 +382,7 @@ export function UpiPaymentPanel({
           onClick={openUpiApp}
           leadingIcon={<Smartphone className="h-4 w-4" />}
         >
-          Pay using a UPI app
+          Pay with UPI App
         </Button>
         {launchHint ? (
           <p className="flex items-start gap-1.5 rounded-xl bg-warning/[0.07] px-3 py-2 text-[10px] leading-relaxed text-muted">
@@ -415,61 +411,43 @@ export function UpiPaymentPanel({
         </div>
       </div>
 
-      {data.upi_reference ? (
-        <StateCard
-          tone="warning"
-          icon={<Clock3 className="h-4 w-4" />}
-          title="Reference already submitted"
-          body={`We already have reference ${data.upi_reference} for this payment. The gym will verify it before activating the plan.`}
-        />
-      ) : (
-        <div className="rounded-2xl border border-line/80 bg-surface p-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-primary-strong">
-              <BadgeIndianRupee className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <p className="text-[12px] font-semibold text-ink">Already paid?</p>
-              <p className="text-[9.5px] text-muted">Submit the reference so the gym can verify it.</p>
-            </div>
+      <div className="rounded-2xl border border-line/80 bg-surface p-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-primary-strong">
+            <BadgeIndianRupee className="h-3.5 w-3.5" />
           </div>
-
-          <div className="mt-3">
-            <Input
-              label="UPI reference / UTR"
-              placeholder="e.g. 123456789012"
-              value={reference}
-              onChange={(event) => {
-                setReference(event.target.value)
-                if (formError) setFormError(null)
-              }}
-              autoComplete="off"
-              spellCheck={false}
-              inputMode="text"
-              hint="Open your UPI app → tap this payment → copy the UTR / transaction ID."
-              error={formError}
-              disabled={submitReference.isPending}
-            />
+          <div>
+            <p className="text-[12px] font-semibold text-ink">Finished paying?</p>
+            <p className="text-[9.5px] text-muted">
+              Tap once so the gym knows to confirm your transfer.
+            </p>
           </div>
-
-          <Button
-            type="button"
-            className="mt-3"
-            fullWidth
-            variant="secondary"
-            onClick={() => void handleSubmitReference()}
-            loading={submitReference.isPending}
-            leadingIcon={!submitReference.isPending ? <ShieldCheck className="h-4 w-4" /> : undefined}
-          >
-            {submitReference.isPending ? 'Submitting…' : 'Submit for verification'}
-          </Button>
-
-          <p className="mt-2 text-center text-[9.5px] leading-relaxed text-faint">
-            Submitting a reference does not activate the plan. The gym verifies every direct UPI
-            payment manually. FitDesk never asks for your UPI PIN, OTP, or banking password.
-          </p>
         </div>
-      )}
+
+        <Button
+          type="button"
+          className="mt-3"
+          size="lg"
+          fullWidth
+          onClick={() => void handleMarkPaid()}
+          loading={markPaid.isPending}
+          leadingIcon={!markPaid.isPending ? <ShieldCheck className="h-4 w-4" /> : undefined}
+        >
+          {markPaid.isPending ? 'Sending…' : 'I Have Paid'}
+        </Button>
+
+        {formError ? (
+          <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-relaxed text-danger">
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            {formError}
+          </p>
+        ) : null}
+
+        <p className="mt-2 text-center text-[9.5px] leading-relaxed text-faint">
+          This does not activate the plan. The gym confirms every app payment before your membership
+          starts. FitDesk never asks for your UPI PIN, OTP, or banking password.
+        </p>
+      </div>
 
       <Button variant="ghost" fullWidth onClick={onBack}>
         Pay later

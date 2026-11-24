@@ -21,9 +21,15 @@ import {
 } from '@/lib/api/payments'
 import {
   getUpiPaymentInstructions,
+  markPaymentPaid,
   reserveUpiCheckout,
   submitUpiReference,
 } from '@/lib/api/upi'
+import {
+  getCashPayment,
+  requestCashPayment,
+  verifyCashOtp,
+} from '@/lib/api/cashOtp'
 import {
   listPendingPayments,
   listRefundPayments,
@@ -47,6 +53,7 @@ export const queryKeys = {
   quote: (packageId: string, durationDays: number | null) =>
     ['renewal-quote', packageId, durationDays] as const,
   upiPayment: (paymentId: string | null) => ['upi-payment', paymentId ?? 'none'] as const,
+  cashPayment: (paymentId: string | null) => ['cash-payment', paymentId ?? 'none'] as const,
 }
 
 export function useMembershipSnapshot() {
@@ -324,6 +331,82 @@ export function useSubmitUpiReference() {
         queryKey: queryKeys.pendingPayment(userId ?? 'anonymous'),
       })
       void queryClient.invalidateQueries({ queryKey: queryKeys.membership(userId ?? 'anonymous') })
+    },
+  })
+}
+
+/** One-tap "I Have Paid" — records the claim and waits for gym approval. */
+export function useMarkPaymentPaid() {
+  const queryClient = useQueryClient()
+  const { userId } = useAuth()
+  return useMutation({
+    mutationFn: (paymentId: string) => markPaymentPaid(paymentId),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['upi-payment'] })
+      void queryClient.invalidateQueries({ queryKey: ['cash-payment'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments(userId ?? 'anonymous') })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.pendingPayment(userId ?? 'anonymous'),
+      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.membership(userId ?? 'anonymous') })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.upiPayment(result.payment_id) })
+    },
+  })
+}
+
+/** Cash request state, including the live 300-second code window. */
+export function useCashPayment(paymentId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.cashPayment(paymentId),
+    queryFn: () => getCashPayment(paymentId!),
+    enabled: Boolean(paymentId),
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    retry: 1,
+    refetchInterval: 15_000,
+  })
+}
+
+/** Creates the cash payment and issues the 6-digit code for the gym. */
+export function useRequestCashPayment() {
+  const queryClient = useQueryClient()
+  const { userId } = useAuth()
+  return useMutation({
+    mutationFn: ({
+      packageId,
+      durationDays,
+      isNewAdmission,
+    }: {
+      packageId: string
+      durationDays?: number | null
+      isNewAdmission?: boolean
+    }) => requestCashPayment(packageId, durationDays, isNewAdmission),
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments(userId ?? 'anonymous') })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.pendingPayment(userId ?? 'anonymous'),
+      })
+    },
+  })
+}
+
+/** Valid code → payment approved, plan active, receipt available. */
+export function useVerifyCashOtp() {
+  const queryClient = useQueryClient()
+  const { userId, refreshProfile } = useAuth()
+  return useMutation({
+    mutationFn: ({ paymentId, otp }: { paymentId: string; otp: string }) =>
+      verifyCashOtp(paymentId, otp),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['cash-payment'] })
+      void queryClient.invalidateQueries({ queryKey: ['upi-payment'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments(userId ?? 'anonymous') })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.pendingPayment(userId ?? 'anonymous'),
+      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.membership(userId ?? 'anonymous') })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cashPayment(result.payment_id) })
+      void refreshProfile()
     },
   })
 }

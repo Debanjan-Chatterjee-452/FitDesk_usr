@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { CalendarCheck2, Dumbbell, QrCode, ShieldCheck, Sparkles } from 'lucide-react'
+import { FitDeskLogo } from '@/components/ui/FitDeskLogo'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { GeometricBackground } from './GeometricBackground'
@@ -58,8 +59,11 @@ export function AuthLayout({
         <div className="absolute -right-20 top-1/4 h-[300px] w-[300px] rounded-full border border-white/10" aria-hidden="true" />
         <div className="absolute -right-8 top-1/4 h-[180px] w-[180px] rounded-full bg-primary/20 blur-2xl" aria-hidden="true" />
 
-        <div className="relative z-10">
-          <Logo inverted subtitle="Member application" />
+        <div className="relative z-10 flex flex-col items-start gap-1">
+          <FitDeskLogo variant="full" className="h-16 w-auto text-white" />
+          <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-white/55">
+            Member application
+          </p>
         </div>
 
         <div className="relative z-10 max-w-[480px] py-10">
