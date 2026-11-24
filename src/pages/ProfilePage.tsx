@@ -459,21 +459,23 @@ export function ProfilePage() {
                   className="ring-2 ring-white/20"
                 />
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="display-accent min-w-0 whitespace-normal break-words text-[22px] leading-tight text-white sm:text-[26px] lg:text-[28px]">
-                      {profile.full_name ?? 'FitDesk member'}
-                    </h1>
-                    {completed ? (
-                      <Badge tone="success" className="border-emerald-300/25 bg-emerald-300/15 text-emerald-100">
-                        Verified
-                      </Badge>
-                    ) : null}
-                    {isDemo ? (
-                      <Badge tone="warning" className="border-amber-300/30 bg-amber-300/15 text-amber-100">
-                        Demo
-                      </Badge>
-                    ) : null}
-                  </div>
+                  <h1 className="display-accent whitespace-nowrap text-[clamp(16px,5vw,28px)] leading-tight text-white">
+                    {profile.full_name ?? 'FitDesk member'}
+                  </h1>
+                  {completed || isDemo ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {completed ? (
+                        <Badge tone="success" className="border-emerald-300/25 bg-emerald-300/15 text-emerald-100">
+                          Verified
+                        </Badge>
+                      ) : null}
+                      {isDemo ? (
+                        <Badge tone="warning" className="border-amber-300/30 bg-amber-300/15 text-amber-100">
+                          Demo
+                        </Badge>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p className="mt-1 text-[12.5px] font-medium text-white/60">
                     {profile.email || prettyPhone(profile.phone)}
                   </p>
