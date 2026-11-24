@@ -33,7 +33,7 @@ export function BottomNav() {
       aria-label="Primary navigation"
       className="fixed bottom-[max(env(safe-area-inset-bottom),0.65rem)] left-1/2 z-50 w-[calc(100%-1.75rem)] max-w-[430px] -translate-x-1/2 lg:hidden"
     >
-      <div className="glass flex h-[70px] items-center justify-between rounded-[26px] border border-line/60 px-2 shadow-nav">
+      <div className="glass flex h-[70px] items-center justify-between rounded-[26px] border border-line/60 px-0.5 shadow-nav sm:px-2">
         {ITEMS.slice(0, 2).map((item) => (
           <NavItemLink key={item.to} item={item} />
         ))}
@@ -41,10 +41,10 @@ export function BottomNav() {
         <button
           type="button"
           onClick={() => navigate('/scan')}
-          className="group flex w-[64px] shrink-0 flex-col items-center justify-start gap-1"
+          className="group flex w-[52px] shrink-0 flex-col items-center justify-start gap-1 sm:w-[64px]"
           aria-label="Scan gym QR code"
         >
-          <span className="-mt-7 flex h-[54px] w-[54px] items-center justify-center rounded-[20px] border-[4px] border-bg bg-primary text-primary-ink shadow-[0_14px_30px_-8px_rgb(var(--primary)/0.75)] transition duration-200 ease-spring group-active:scale-95">
+          <span className="-mt-7 flex h-[50px] w-[50px] items-center justify-center rounded-[18px] border-[4px] border-bg bg-primary text-primary-ink shadow-[0_14px_30px_-8px_rgb(var(--primary)/0.75)] transition duration-200 ease-spring group-active:scale-95 sm:h-[54px] sm:w-[54px] sm:rounded-[20px]">
             <ScanLine className="h-[23px] w-[23px]" strokeWidth={2.2} />
           </span>
           <span className="-mt-0.5 text-[9.5px] font-bold uppercase tracking-[0.08em] text-primary-strong">
@@ -68,7 +68,7 @@ function NavItemLink({ item }: { item: NavItem }) {
       end={item.end}
       className={({ isActive }) =>
         cn(
-          'relative flex w-[64px] flex-col items-center gap-1.5 rounded-2xl py-1.5 text-[9.5px] font-semibold tracking-[0.02em] transition-colors',
+          'relative flex w-[52px] flex-col items-center gap-1 rounded-2xl py-1.5 text-[9px] font-semibold tracking-[0.02em] transition-colors sm:w-[64px] sm:text-[9.5px]',
           isActive ? 'text-primary-strong' : 'text-muted hover:text-ink',
         )
       }

@@ -34,19 +34,29 @@ export function Sheet({
   hideClose,
 }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
-  const restoreFocusRef = useRef<HTMLElement | null>(null)
+  const onOpenChangeRef = useRef(onOpenChange)
+  onOpenChangeRef.current = onOpenChange
 
+  // The callback is normally an inline arrow from the caller. Keeping it in
+  // a ref stops this effect from re-running on every parent render — which
+  // used to refocus the panel while someone was typing in a field.
   useEffect(() => {
     if (!open) return
-    restoreFocusRef.current = document.activeElement as HTMLElement | null
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
     const originalOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
-    const timer = window.setTimeout(() => panelRef.current?.focus(), 60)
+    const timer = window.setTimeout(() => {
+      const field = panelRef.current?.querySelector<HTMLElement>(
+        'input:not([type="hidden"]), textarea, select, [contenteditable="true"]',
+      )
+      ;(field ?? panelRef.current)?.focus()
+    }, 60)
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onOpenChange(false)
+        onOpenChangeRef.current(false)
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -55,9 +65,9 @@ export function Sheet({
       window.clearTimeout(timer)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = originalOverflow
-      restoreFocusRef.current?.focus?.()
+      previouslyFocused?.focus()
     }
-  }, [open, onOpenChange])
+  }, [open])
 
   if (typeof document === 'undefined') return null
 

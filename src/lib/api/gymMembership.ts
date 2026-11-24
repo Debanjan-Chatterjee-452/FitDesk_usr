@@ -42,6 +42,14 @@ export async function leaveMyGym(): Promise<LeaveGymResult> {
     if (!data) throw new Error('LEAVE_GYM_FAILED')
     return data as LeaveGymResult
   } catch (error) {
-    throw toAppError(error)
+    const appError = toAppError(error)
+    if (appError.code === 'ACCOUNT_OWNS_GYM') {
+      throw new AppError(
+        'ACCOUNT_OWNS_GYM',
+        'Gym owners cannot leave their gym here. Transfer ownership to another admin first.',
+        error,
+      )
+    }
+    throw appError
   }
 }
