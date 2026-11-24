@@ -460,7 +460,7 @@ export function ProfilePage() {
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="truncate display-accent text-[24px] text-white sm:text-[28px]">
+                    <h1 className="display-accent min-w-0 whitespace-normal break-words text-[22px] leading-tight text-white sm:text-[26px] lg:text-[28px]">
                       {profile.full_name ?? 'FitDesk member'}
                     </h1>
                     {completed ? (
@@ -1375,7 +1375,7 @@ export function ProfilePage() {
         <div className="flex items-center gap-3 rounded-2xl border border-line/80 bg-elevated/50 p-4">
           <Avatar name={profile.full_name} size="md" />
           <div className="min-w-0">
-            <p className="truncate text-[12.5px] font-semibold text-ink">
+            <p className="whitespace-normal break-words text-[12.5px] font-semibold text-ink">
               {profile.full_name ?? 'FitDesk member'}
             </p>
             <p className="truncate text-[10.5px] text-muted">
