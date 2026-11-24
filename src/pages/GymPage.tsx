@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Building2,
-  CheckCircle2,
   Clock3,
   LogOut,
   Repeat2,
@@ -36,7 +34,6 @@ import { formatKolkata } from '@/lib/kolkata'
  * Both deactivate the old membership and notify the old gym's admin.
  */
 export function GymPage() {
-  const navigate = useNavigate()
   const { profile, refreshProfile } = useAuth()
   const gymQuery = useGymOverview()
 
@@ -242,25 +239,6 @@ export function GymPage() {
                 >
                   Refresh status
                 </button>
-              </div>
-            </section>
-          ) : null}
-
-          {requests.some((item) => item.status === 'approved') ? (
-            <section className="flex items-start gap-3 rounded-2xl border border-success/25 bg-success/[0.06] p-4">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-              <div className="flex-1">
-                <p className="text-[12px] font-semibold text-ink">You are approved</p>
-                <p className="mt-0.5 text-[10.5px] text-muted">Tap below to enter FitDesk.</p>
-                <Button
-                  className="mt-2"
-                  size="sm"
-                  onClick={() =>
-                    void refreshProfile().then(() => navigate('/', { replace: true }))
-                  }
-                >
-                  Enter FitDesk
-                </Button>
               </div>
             </section>
           ) : null}
