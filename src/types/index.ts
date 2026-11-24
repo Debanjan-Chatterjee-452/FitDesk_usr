@@ -294,6 +294,16 @@ export interface CashPaymentRequestResult {
   reason?: string | null
 }
 
+/** Result of unlinking from a gym (account and documents stay intact). */
+export interface LeaveGymResult {
+  status: 'left' | 'not_in_gym'
+  user_id?: string
+  gym_id?: string
+  gym_name?: string
+  member_name?: string
+  left_at?: string
+}
+
 /** Everything the payment screen is allowed to render, for one payment. */
 export interface UpiPaymentInstructions {
   payment_id: string

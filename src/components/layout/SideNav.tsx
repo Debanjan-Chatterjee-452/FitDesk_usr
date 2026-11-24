@@ -1,6 +1,7 @@
 import { NavLink, Link } from 'react-router-dom'
 import {
   ArrowUpRight,
+  Building2,
   CalendarDays,
   CreditCard,
   House,
@@ -30,6 +31,7 @@ const ITEMS: NavItem[] = [
   { to: '/', label: 'Overview', icon: House, end: true },
   { to: '/membership', label: 'Membership', icon: CreditCard },
   { to: '/attendance', label: 'Activity', icon: CalendarDays },
+  { to: '/gym', label: 'Gym', icon: Building2 },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]
 

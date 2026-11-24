@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
+  Building2,
   CalendarDays,
   CreditCard,
   House,
@@ -19,6 +20,7 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { to: '/', label: 'Home', icon: House, end: true },
   { to: '/membership', label: 'Membership', icon: CreditCard },
+  { to: '/gym', label: 'Gym', icon: Building2 },
   { to: '/attendance', label: 'Activity', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]

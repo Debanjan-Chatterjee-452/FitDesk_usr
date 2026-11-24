@@ -43,6 +43,9 @@ const JoinGymPage = lazy(() =>
 const HomePage = lazy(() =>
   import('@/pages/HomePage').then((module) => ({ default: module.HomePage })),
 )
+const GymPage = lazy(() =>
+  import('@/pages/GymPage').then((module) => ({ default: module.GymPage })),
+)
 const MembershipPage = lazy(() =>
   import('@/pages/MembershipPage').then((module) => ({ default: module.MembershipPage })),
 )
@@ -109,6 +112,11 @@ export default function App() {
 
             <Route element={<RequireCompleteProfile />}>
               <Route path="/join-gym" element={<JoinGymPage />} />
+
+              {/* Gym controls must stay reachable when the member has no gym. */}
+              <Route element={<AppShell />}>
+                <Route path="/gym" element={<GymPage />} />
+              </Route>
 
               <Route element={<RequireGym />}>
                 <Route element={<AppShell />}>

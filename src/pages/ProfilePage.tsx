@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
   BadgeCheck,
+  Building2,
   CalendarDays,
   Camera,
   ChevronRight,
@@ -33,7 +34,7 @@ import { toast } from 'sonner'
 import type { BloodGroup, Gender, LegalDocumentType } from '@/types'
 import { useAuth } from '@/context/AuthProvider'
 import { useTheme, type ThemeMode } from '@/context/ThemeProvider'
-import { useAttendanceStats, useMembershipSnapshot } from '@/hooks/queries'
+import { useAttendanceStats, useGymOverview, useMembershipSnapshot } from '@/hooks/queries'
 import {
   getAvatarSignedUrl,
   getDocumentSignedUrl,
@@ -121,6 +122,7 @@ export function ProfilePage() {
   } = useAuth()
   const { mode, setMode } = useTheme()
   const membershipQuery = useMembershipSnapshot()
+  const gymQuery = useGymOverview()
   const { stats } = useAttendanceStats()
 
   const [editOpen, setEditOpen] = useState(false)
@@ -575,6 +577,29 @@ export function ProfilePage() {
             {avatarError ? (
               <p className="mt-3 text-xs font-medium text-danger">{avatarError}</p>
             ) : null}
+          </section>
+
+          <section className="card overflow-hidden">
+            <div className="flex items-start justify-between gap-3 border-b border-line/70 px-5 py-4">
+              <div>
+                <h2 className="text-[15px] font-semibold text-ink">Membership</h2>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  Your current gym and plan at a glance.
+                </p>
+              </div>
+            </div>
+            <div className="divide-y divide-line/60 px-5">
+              <DetailRow
+                icon={<Building2 className="h-[17px] w-[17px]" />}
+                label="Current gym"
+                value={
+                  profile.gym_id
+                    ? gymQuery.data?.gymName ?? 'Your gym'
+                    : 'None'
+                }
+                hint="Manage or leave your gym from the Gym panel."
+              />
+            </div>
           </section>
 
           <section className="card overflow-hidden">

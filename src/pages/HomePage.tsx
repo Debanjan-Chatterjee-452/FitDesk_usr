@@ -286,6 +286,7 @@ export function HomePage() {
               snapshot={snapshot}
               now={now}
               upcoming={membershipQuery.upcoming}
+              gymName={gymQuery.data?.gymName ?? null}
               onRenew={() => navigate('/membership')}
               onScan={() => navigate('/scan')}
             />

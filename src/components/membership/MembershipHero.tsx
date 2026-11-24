@@ -10,6 +10,7 @@ interface MembershipHeroProps {
   snapshot: MembershipSnapshot
   now: Date
   upcoming?: Membership | null
+  gymName?: string | null
   onRenew: () => void
   onScan: () => void
 }
@@ -18,6 +19,7 @@ export function MembershipHero({
   snapshot,
   now,
   upcoming,
+  gymName,
   onRenew,
   onScan,
 }: MembershipHeroProps) {
@@ -162,6 +164,9 @@ export function MembershipHero({
             <p className="mt-1 font-display text-[17px] font-semibold tracking-tight text-white/90">
               {formatKolkata(membership.ends_on, 'd MMM yyyy')}
             </p>
+            {gymName ? (
+              <p className="mt-1 text-[10.5px] font-medium text-white/50">{gymName}</p>
+            ) : null}
 
             {isActive ? (
               <div className="mt-3 flex items-baseline gap-1.5">
