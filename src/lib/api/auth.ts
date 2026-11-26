@@ -23,19 +23,22 @@ export interface SignUpResult {
 
 const CONFIRM_EMAIL_PATH = '/confirm-email'
 const RESET_PASSWORD_PATH = '/reset-password'
+const MEMBER_PRODUCTION_URL = 'https://fitdesk-usr.vercel.app'
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
 /**
- * Builds an absolute URL for Supabase email links. The same URLs must be
- * allow-listed under Authentication → URL Configuration in the Supabase
- * dashboard (Site URL + Redirect URLs).
+ * Builds an absolute URL for Supabase email links. Local development still
+ * points at the live site so a reset link can never be tied to localhost.
  */
 export function emailRedirectTo(path: string): string {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-  return `${window.location.origin}${base}${path}`
+  const origin = window.location.origin
+  const base = /^http:\/\/(localhost|127\.0\.0\.1)/.test(origin)
+    ? MEMBER_PRODUCTION_URL
+    : origin.replace(/\/$/, '')
+  return `${base}${path}`
 }
 
 function findDemoUser(email: string, db = loadDemoDatabase()): DemoUser | undefined {
@@ -288,6 +291,47 @@ export function exchangeEmailLink(code: string): Promise<void> {
 
   exchangePromises.set(trimmed, promise)
   return promise
+}
+
+/**
+ * Supabase fires PASSWORD_RECOVERY once a recovery link establishes a session.
+ * The reset screen listens for it so the form opens reliably on every device.
+ */
+export function onPasswordRecovery(handler: () => void): () => void {
+  if (!isSupabaseConfigured || isDemo) return () => undefined
+  const { data } = getSupabase().auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') handler()
+  })
+  return () => data.subscription.unsubscribe()
+}
+
+/**
+ * Handles hash-based recovery links (#access_token=...&type=recovery).
+ * Most Supabase projects use PKCE now, but older links still use this shape.
+ */
+export async function recoverFromHash(): Promise<boolean> {
+  if (isDemo || !isSupabaseConfigured) return false
+  const hash = window.location.hash.replace(/^#/, '')
+  if (!hash) return false
+  const params = new URLSearchParams(hash)
+  const accessToken = params.get('access_token')
+  const refreshToken = params.get('refresh_token')
+  if (!accessToken || !refreshToken) return false
+
+  const type = params.get('type')
+  if (type && type !== 'recovery' && type !== 'signup') return false
+
+  try {
+    const { error } = await getSupabase().auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    })
+    if (error) throw toAppError(error)
+    window.history.replaceState({}, '', window.location.pathname)
+    return true
+  } catch (error) {
+    throw toAppError(error)
+  }
 }
 
 /**

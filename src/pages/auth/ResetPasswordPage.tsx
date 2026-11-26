@@ -8,7 +8,14 @@ import { toast } from 'sonner'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { PasswordInput } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { exchangeEmailLink, getStoredUserId, startDemoPasswordReset, updatePassword } from '@/lib/api/auth'
+import {
+  exchangeEmailLink,
+  getStoredUserId,
+  onPasswordRecovery,
+  recoverFromHash,
+  startDemoPasswordReset,
+  updatePassword,
+} from '@/lib/api/auth'
 import {
   clearPendingAuth,
   clearRecoverySession,
@@ -57,6 +64,8 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     let active = true
+    let recovered = false
+    let unsubscribeRecovery: (() => void) | undefined
 
     const invalid = (message: string) => {
       if (!active) return
@@ -72,6 +81,22 @@ export function ResetPasswordPage() {
       if (linkErrorParam) {
         invalid('This password reset link is invalid or has expired. Request a new one.')
         return
+      }
+
+      if (!isDemo) {
+        try {
+          const fromHash = await recoverFromHash()
+          if (fromHash) {
+            if (active) {
+              markRecoverySession()
+              setPhase('ready')
+            }
+            return
+          }
+        } catch (error) {
+          invalid(toAppError(error).message)
+          return
+        }
       }
 
       if (isDemo) {
@@ -103,19 +128,32 @@ export function ResetPasswordPage() {
         return
       }
 
+      unsubscribeRecovery = onPasswordRecovery(() => {
+        if (!active) return
+        recovered = true
+        markRecoverySession()
+        setPhase('ready')
+      })
+
       if (hasRecoverySession()) {
         const userId = await getStoredUserId()
         if (userId) {
-          if (active) setPhase('ready')
+          if (active) {
+            recovered = true
+            setPhase('ready')
+          }
           return
         }
       }
 
-      invalid('This page needs a valid password reset link. Request a new one below.')
+      if (!recovered) {
+        invalid('This page needs a valid password reset link. Request a new one below.')
+      }
     })()
 
     return () => {
       active = false
+      unsubscribeRecovery?.()
     }
   }, [])
 
